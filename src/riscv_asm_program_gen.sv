@@ -341,6 +341,7 @@ class riscv_asm_program_gen extends uvm_object;
     end
     core_is_initialized();
     gen_dummy_csr_write();
+    randomize_vec_gpr_and_csr();
   endfunction
 
   // Setup MISA based on supported extensions
@@ -359,6 +360,7 @@ class riscv_asm_program_gen extends uvm_object;
         RV32A, RV64A         : misa[MISA_EXT_A] = 1'b1;
         RV32F, RV64F, RV32FC : misa[MISA_EXT_F] = 1'b1;
         RV32D, RV64D, RV32DC : misa[MISA_EXT_D] = 1'b1;
+        RVV                  : misa[MISA_EXT_V] = 1'b1;
         default : `uvm_fatal(`gfn, $sformatf("%0s is not yet supported",
                                    supported_isa[i].name()))
       endcase
@@ -421,20 +423,29 @@ class riscv_asm_program_gen extends uvm_object;
 
   // Initialize general purpose registers with random value
   virtual function void init_gpr();
-    string str;
-    bit [DATA_WIDTH-1:0] reg_val;
-    // Init general purpose registers with random values
-    for(int i = 0; i < 32; i++) begin
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(reg_val,
-        reg_val dist {
-          'h0                         :/ 1,
-          'h8000_0000                 :/ 1,
-          ['h1         : 'hF]         :/ 1,
-          ['h10        : 'hEFFF_FFFF] :/ 1,
-          ['hF000_0000 : 'hFFFF_FFFF] :/ 1
-        };)
-      str = $sformatf("%0sli x%0d, 0x%0x", indent, i, reg_val);
-      instr_stream.push_back(str);
+    instr_stream.push_back("");
+    instr_stream.push_back("gpr_init:");
+    for (int i = 0; i < NUM_GPR; i++) begin
+      instr_stream.push_back($sformatf("%0sli x%0d, 0x%0x", indent, i, get_rand_gpr_value(XLEN)));
+    end
+  endfunction
+
+  // Initialize vector general purpose registers
+  virtual function void init_vec_gpr();
+    int len = (ELEN <= XLEN) ? ELEN : XLEN;
+    int num_elements = VLEN / len;
+    if (!(RVV inside {supported_isa})) return;
+    LMUL = 1;
+    SEW = (ELEN <= XLEN) ? ELEN : XLEN; // vec registers will be loaded from a scalar GPR, one element at a time
+    instr_stream.push_back($sformatf("%svsetvli t0, x0, e%0d, m%0d, d%0d", indent, SEW, LMUL, EDIV));
+    instr_stream.push_back("");
+    instr_stream.push_back("vec_reg_init:");
+    for (int v = 1; v < NUM_VEC_GPR; v++) begin
+      for (int e = 0; e < num_elements; e++) begin
+        if (e > 0) instr_stream.push_back($sformatf("%0svmv.v.v v0, v%0d", indent, v));
+        instr_stream.push_back($sformatf("%0sli t0, 0x%0x", indent, get_rand_gpr_value(SEW)));
+        instr_stream.push_back($sformatf("%0svslide1up.vx v%0d, v0, t0", indent, v));
+      end
     end
   endfunction
 
@@ -443,10 +454,10 @@ class riscv_asm_program_gen extends uvm_object;
     int int_gpr;
     string str;
     // TODO: Initialize floating point GPR with more interesting numbers
-    for(int i = 0; i < 32; i++) begin
+    for(int i = 0; i < NUM_FLOAT_GPR; i++) begin
       int_gpr = $urandom_range(0, 31);
       // Use a random integer GPR to initialize floating point GPR
-      if (RV64F inside {supported_isa}) begin
+      if (RV64D inside {supported_isa}) begin
         str = $sformatf("%0sfcvt.d.l f%0d, x%0d", indent, i, int_gpr);
       end else begin
         str = $sformatf("%0sfcvt.s.w f%0d, x%0d", indent, i, int_gpr);
@@ -456,6 +467,22 @@ class riscv_asm_program_gen extends uvm_object;
     // Initialize rounding mode of FCSR
     str = $sformatf("%0sfsrmi %0d", indent, cfg.fcsr_rm);
     instr_stream.push_back(str);
+  endfunction
+
+  virtual function bit [127:0] get_rand_gpr_value(int len=XLEN);
+    bit [127:0] db = 128'hDEADBEEFDEADBEEFDEADBEEFDEADBEEF >> (128-len);
+    bit [127:0] ef = 128'hEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF >> (128-len);
+    bit [127:0] f0 = 128'hF0000000000000000000000000000000 >> (128-len);
+    bit [127:0] ff = 128'hFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF >> (128-len);
+
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(get_rand_gpr_value,
+      get_rand_gpr_value dist {
+        'h0          :/ 1,
+        db           :/ 1,
+        ['h1  : 'hF] :/ 1,
+        ['h10 :  ef] :/ 1,
+        [f0   :  ff] :/ 1
+      };)
   endfunction
 
   // Generate "test_done" section, test is finished by an ECALL instruction
@@ -1415,6 +1442,48 @@ class riscv_asm_program_gen extends uvm_object;
     instr.push_back(str);
     str = $sformatf("csrw 0x%0x, x%0d", csr, cfg.scratch_reg);
     instr.push_back(str);
+  endfunction
+
+  virtual function void randomize_vec_gpr_and_csr();
+    if (!(RVV inside {supported_isa})) return;
+    instr_stream.push_back({indent, "csrw vxsat, x0"});
+    instr_stream.push_back({indent, "csrw vxrm, x0"});
+    instr_stream.push_back({indent, "csrw frm, x0"});
+    init_vec_gpr(); // GPR init uses a temporary SEW/LMUL setting before the final value set below.
+    gen_lmul();
+    gen_sew();
+    gen_ediv();
+    instr_stream.push_back($sformatf("%svsetvli t0, x0, e%0d, m%0d, d%0d", indent, SEW, LMUL, EDIV));
+  endfunction
+
+  virtual function void gen_lmul();
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(LMUL,
+      LMUL inside {1, 2, 4, 8};
+      if (cfg.vec_narrowing_widening) {LMUL < 8};
+      if (cfg.vec_quad_widening) {LMUL < 4};
+    )
+  endfunction
+
+  virtual function void gen_sew();
+    bit success = std::randomize(SEW) with {
+      SEW inside {8, 16, 32, 64, 128};
+      SEW <= ELEN;
+      if (cfg.vec_fp) {SEW inside {16, 32};}
+      if (cfg.vec_narrowing_widening) {SEW < ELEN;}
+      if (cfg.vec_quad_widening) {SEW < (ELEN >> 1);}
+    };
+    if (~success) begin
+      `uvm_fatal(`gfn, $sformatf({"gen_sew() failed\nELEN = %0d\nvec_fp = %0d\n",
+        "vec_narrowing_widening = %0d\nvec_quad_widening = %0d\n"},
+        ELEN, cfg.vec_fp, cfg.vec_narrowing_widening, cfg.vec_quad_widening))
+    end
+  endfunction
+
+  virtual function void gen_ediv();
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(EDIV,
+      EDIV inside {1, 2, 4, 8};
+      EDIV <= (SEW / SELEN);
+    )
   endfunction
 
 endclass

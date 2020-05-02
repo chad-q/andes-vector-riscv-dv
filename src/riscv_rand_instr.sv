@@ -18,9 +18,6 @@ class riscv_rand_instr extends riscv_instr_base;
 
   riscv_instr_gen_config cfg;
 
-  // Some additional reserved registers
-  riscv_reg_t reserved_rd[];
-
   `uvm_object_utils(riscv_rand_instr)
 
   constraint category_c {
@@ -40,6 +37,7 @@ class riscv_rand_instr extends riscv_instr_base;
     solve instr_name before rs1;
     solve instr_name before rs2;
     !(instr_name inside {riscv_instr_pkg::unsupported_instr});
+    !(instr_name inside {cfg.excluded_instr});
     group inside {riscv_instr_pkg::supported_isa};
     // Avoid using any special purpose register as rd, those registers are reserved for
     // special instructions
@@ -134,6 +132,7 @@ class riscv_rand_instr extends riscv_instr_base;
     if (cfg.no_branch_jump) begin
       has_label = 1'b0;
     end
+    if (group == RVV) gen_rand_vec_args(cfg);
   endfunction
 
   `uvm_object_new

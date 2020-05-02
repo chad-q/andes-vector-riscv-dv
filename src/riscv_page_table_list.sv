@@ -38,9 +38,6 @@ class riscv_page_table_list#(satp_mode_t MODE = SV39) extends uvm_object;
   // Privileged mode of the program
   privileged_mode_t privileged_mode = USER_MODE;
 
-  // Starting physical address of the program.
-  bit [XLEN-1:0] start_pa = 'h8000_0000;
-
   // Num of page table per level
   int unsigned num_of_page_table[];
 
@@ -147,7 +144,7 @@ class riscv_page_table_list#(satp_mode_t MODE = SV39) extends uvm_object;
          $cast(page_table[i].pte[j], valid_leaf_pte.clone());
         end
         if(page_table[i].pte[j].xwr != NEXT_LEVEL_PAGE) begin
-          page_table[i].pte[j].set_ppn(start_pa, pte_index, page_table[i].level);
+          page_table[i].pte[j].set_ppn(cfg.start_pa, pte_index, page_table[i].level);
         end
         pte_index++;
         if(enable_exception) begin
@@ -526,6 +523,7 @@ class riscv_page_table_list#(satp_mode_t MODE = SV39) extends uvm_object;
                // If not the end of the kernel space, process the next PTE
                $sformatf("ble x%0d, x%0d, 2b", cfg.gpr[0], cfg.gpr[1])};
     end
+    instr = {instr, "sfence.vma"}; // Update page tables to memory in case of D$ on early
   endfunction
 
   // If you want to create custom page table topology, override the below tasks to specify the

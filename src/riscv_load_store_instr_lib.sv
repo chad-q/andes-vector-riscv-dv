@@ -86,92 +86,212 @@ class riscv_load_store_base_instr_stream extends riscv_mem_access_stream;
 
   function void post_randomize();
     randomize_offset();
-    // rs1 cannot be modified by other instructions
-    if(!(rs1_reg inside {reserved_rd})) begin
-      reserved_rd = {reserved_rd, rs1_reg};
-    end
     gen_load_store_instr();
     add_mixed_instr(num_mixed_instr);
     add_rs1_init_la_instr(rs1_reg, data_page_id, base);
     super.post_randomize();
   endfunction
 
+  bit enable_compressed_load_store;
+
   // Generate each load/store instruction
   virtual function void gen_load_store_instr();
-    bit enable_compressed_load_store;
-    riscv_instr_base instr;
-    if(avail_regs.size() > 0) begin
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(avail_regs,
-                                         unique{avail_regs};
-                                         avail_regs[0] inside {[S0 : A5]};
-                                         foreach(avail_regs[i]) {
-                                           !(avail_regs[i] inside {cfg.reserved_regs, reserved_rd});
-                                         },
-                                         "Cannot randomize avail_regs")
-    end
+    randomize_avail_regs();
+    set_en_compressed_load_store();
+    protect_address_reg();
+    foreach (addr[i]) gen_load_store_for_addr(i);
+  endfunction
+
+  virtual function void set_en_compressed_load_store();
     if ((rs1_reg inside {[S0 : A5]}) && !cfg.disable_compressed_instr) begin
       enable_compressed_load_store = 1;
     end
-    foreach(addr[i]) begin
-      instr = riscv_instr_base::type_id::create("instr");
-      // Assign the allowed load/store instructions based on address alignment
-      // This is done separately rather than a constraint to improve the randomization performance
-      allowed_instr = {LB, LBU, SB};
-      if (!cfg.enable_unaligned_load_store) begin
-        if (addr[i][0] == 1'b0) begin
-          allowed_instr = {LH, LHU, SH, allowed_instr};
-        end
-        if (addr[i] % 4 == 0) begin
-          allowed_instr = {LW, SW, allowed_instr};
-          if (cfg.enable_floating_point) begin
-            allowed_instr = {FLW, FSW, allowed_instr};
-          end
-          if((offset[i] inside {[0:127]}) && (offset[i] % 4 == 0) &&
-             (RV32C inside {riscv_instr_pkg::supported_isa}) &&
-             enable_compressed_load_store) begin
-            allowed_instr = {C_LW, C_SW, allowed_instr};
-            if (cfg.enable_floating_point && (RV32FC inside {supported_isa})) begin
-              allowed_instr = {C_FLW, C_FSW, allowed_instr};
-            end
-          end
-        end
-        if ((XLEN >= 64) && (addr[i] % 8 == 0)) begin
-          allowed_instr = {LWU, LD, SD, allowed_instr};
-          if (cfg.enable_floating_point && (RV32D inside {supported_isa})) begin
-            allowed_instr = {FLD, FSD, allowed_instr};
-          end
-          if((offset[i] inside {[0:255]}) && (offset[i] % 8 == 0) &&
-             (RV64C inside {riscv_instr_pkg::supported_isa} &&
-             enable_compressed_load_store)) begin
-            allowed_instr = {C_LD, C_SD, allowed_instr};
-            if (cfg.enable_floating_point && (RV32DC inside {supported_isa})) begin
-              allowed_instr = {C_FLD, C_FSD, allowed_instr};
-            end
-          end
-        end
-      end else begin
-        allowed_instr = {LW, SW, LH, LHU, SH, allowed_instr};
-        if ((offset[i] inside {[0:127]}) && (offset[i] % 4 == 0) &&
-            (RV32C inside {riscv_instr_pkg::supported_isa}) &&
-            enable_compressed_load_store) begin
-          allowed_instr = {C_LW, C_SW, allowed_instr};
-        end
-        if (XLEN >= 64) begin
-          allowed_instr = {LWU, LD, SD, allowed_instr};
-          if ((offset[i] inside {[0:255]}) && (offset[i] % 8 == 0) &&
-              (RV64C inside {riscv_instr_pkg::supported_isa}) &&
-              enable_compressed_load_store) begin
-              allowed_instr = {C_LD, C_SD, allowed_instr};
-           end
-        end
-      end
-      randomize_instr(instr, .skip_rs1(1'b1), .skip_imm(1'b1), .disable_dist(1'b1));
-      instr.rs1 = rs1_reg;
-      instr.set_imm(offset[i]);
-      instr.process_load_store = 0;
-      instr_list.push_back(instr);
-      load_store_instr.push_back(instr);
+  endfunction
+
+  virtual function void protect_address_reg();
+    // rs1 cannot be modified by other instructions
+    if(!(rs1_reg inside {reserved_rd})) reserved_rd = {reserved_rd, rs1_reg};
+  endfunction
+
+  int idx;
+
+  virtual function void gen_load_store_for_addr(int idx);
+    this.idx = idx;
+    build_allowed_instr();
+    create_rand_instr();
+  endfunction
+
+  virtual function void create_rand_instr();
+    riscv_instr_base instr = riscv_instr_base::type_id::create("instr");
+    randomize_instr(instr, .skip_rs1(1'b1), .skip_imm(1'b1), .disable_dist(1'b1));
+    instr.rs1 = rs1_reg;
+    instr.set_imm(offset[idx]);
+    instr.process_load_store = 0;
+    instr_list.push_back(instr);
+  endfunction
+
+  virtual function void build_allowed_instr();
+    // Assign the allowed load/store instructions based on address alignment
+    // This is done separately rather than a constraint to improve the randomization performance
+    allowed_instr = {};
+    add_byte_aligned_load_stores();
+    if (is_h_aligned(addr[idx]) || cfg.enable_unaligned_load_store) add_h_aligned_load_stores();
+    if (is_w_aligned(addr[idx]) || cfg.enable_unaligned_load_store) add_w_aligned_load_stores();
+    if (XLEN >= 64 && (is_d_aligned(addr[idx]) || cfg.enable_unaligned_load_store)) add_d_aligned_load_stores();
+  endfunction
+
+  virtual function void add_byte_aligned_load_stores();
+    allowed_instr = {LB, LBU, SB, allowed_instr};
+  endfunction
+
+  virtual function void add_h_aligned_load_stores();
+    allowed_instr = {LH, LHU, SH, allowed_instr};
+  endfunction
+
+  virtual function void add_w_aligned_load_stores();
+    allowed_instr = {LW, SW, allowed_instr};
+    if (cfg.enable_floating_point && (RV32F inside {supported_isa})) allowed_instr = {FLW, FSW, allowed_instr};
+    if (can_be_compressed(32)) add_compressed_w_aligned_load_stores();
+  endfunction
+
+  virtual function void add_d_aligned_load_stores();
+    allowed_instr = {LWU, LD, SD, allowed_instr};
+    if (cfg.enable_floating_point && (RV32D inside {supported_isa})) allowed_instr = {FLD, FSD, allowed_instr};
+    if (can_be_compressed(64)) add_compressed_d_aligned_load_stores();
+  endfunction
+
+  virtual function bit can_be_compressed(int bits);
+    int max = (bits == 64) ? 256 : 128;
+    int mod = (bits == 64) ? 8 : 4;
+    riscv_instr_group_t ig = (bits == 64) ? RV64C : RV32C;
+    return (offset[idx] < max) && (offset[idx] % mod == 0) &&
+           (ig inside {riscv_instr_pkg::supported_isa}) &&
+           enable_compressed_load_store;
+  endfunction
+
+  virtual function void add_compressed_w_aligned_load_stores();
+    allowed_instr = {C_LW, C_SW, allowed_instr};
+    if (cfg.enable_floating_point && (RV32FC inside {supported_isa})) allowed_instr = {C_FLW, C_FSW, allowed_instr};
+  endfunction
+
+  virtual function void add_compressed_d_aligned_load_stores();
+    allowed_instr = {C_LD, C_SD, allowed_instr};
+    if (cfg.enable_floating_point && (RV32DC inside {supported_isa})) allowed_instr = {C_FLD, C_FSD, allowed_instr};
+  endfunction
+
+endclass
+
+
+class riscv_vec_unit_stride_load_store_instr_stream extends riscv_mem_access_stream;
+
+  typedef enum {B_ALIGNMENT, H_ALIGNMENT, W_ALIGNMENT, E_ALIGNMENT} alignment_e;
+
+  rand alignment_e alignment;
+  rand int unsigned data_page_id;
+  rand int unsigned num_mixed_instr;
+  rand riscv_reg_t rs1_reg;
+
+  constraint vec_mixed_instr_c {num_mixed_instr inside {[0:10]};}
+  constraint vec_rs1_c {!(rs1_reg inside {cfg.reserved_regs, reserved_rd, ZERO});}
+  constraint vec_data_page_id_c {data_page_id < max_data_page_id;}
+  constraint alignment_sew_c {
+    if (SEW <= 16) {alignment != W_ALIGNMENT;}
+    if (SEW <=  8) {alignment != H_ALIGNMENT;}
+  }
+
+  // int unsigned num_load_store;
+  // int addr[];
+  int base;
+  int max_load_store_addr;
+  riscv_instr_base load_store_instr;
+
+  `uvm_object_utils(riscv_vec_unit_stride_load_store_instr_stream)
+
+  function new(string name = "riscv_vec_unit_stride_load_store_instr_stream");
+    super.new(name);
+  endfunction
+
+  function void post_randomize();
+    randomize_base();
+    // rs1 cannot be modified by other instructions
+    if(!(rs1_reg inside {reserved_rd})) reserved_rd = {reserved_rd, rs1_reg};
+    randomize_avail_regs();
+    gen_load_store_instr();
+    add_mixed_instr(num_mixed_instr);
+    add_rs1_init_la_instr(rs1_reg, data_page_id, base);
+    super.post_randomize();
+  endfunction
+
+  virtual function void randomize_base();
+    int ss = stride_span();
+    max_load_store_addr = data_page[data_page_id].size_in_bytes - ss;
+
+    assert (max_load_store_addr >= 0) else begin
+      `uvm_fatal(`gfn, $sformatf({"Expected positive value for max_load_store_addr.",
+        "  Perhaps more memory needs to be allocated in the data pages for vector loads and stores.",
+        "\ndata_page_id:%0d\ndata_page[data_page_id].size_in_bytes:%0d\nstride_span:%0d",
+        "\nalignment:%s\nstride_bytes:%0d\nVLEN:%0d\nLMUL:%0d\nSEW:%0d\n\n"},
+        data_page_id, data_page[data_page_id].size_in_bytes, ss,
+        alignment.name(), stride_bytes(), VLEN, LMUL, SEW))
     end
+
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(base, base >= 0; base <= max_load_store_addr;)
+    if (!cfg.enable_unaligned_load_store) base &= ~get_addr_alignment_mask(stride_bytes());
+  endfunction
+
+  virtual function int stride_span();
+    int num_elements = VLEN * LMUL / SEW;
+    stride_span = num_elements * stride_bytes();
+  endfunction
+
+  virtual function int stride_bytes();
+    stride_bytes = 0;
+    if (alignment == B_ALIGNMENT) stride_bytes = 1;
+    else if (alignment == H_ALIGNMENT) stride_bytes = 2;
+    else if (alignment == W_ALIGNMENT) stride_bytes = 4;
+    else if (alignment == E_ALIGNMENT) stride_bytes = SEW;
+  endfunction
+
+  // Generate each load/store instruction
+  virtual function void gen_load_store_instr();
+    build_allowed_instr();
+    load_store_instr = riscv_instr_base::type_id::create("load_store_instr");
+    randomize_vec_load_store_instr();
+    configure_vec_load_store_instr();
+    instr_list.push_back(load_store_instr);
+  endfunction
+
+  virtual function void build_allowed_instr();
+    if (alignment == B_ALIGNMENT) add_byte_aligned_vec_load_stores();
+    else if (alignment == H_ALIGNMENT) add_h_aligned_vec_load_stores();
+    else if (alignment == W_ALIGNMENT) add_w_aligned_vec_load_stores();
+    else if (alignment == E_ALIGNMENT) add_element_vec_load_stores();
+  endfunction
+
+  virtual function void add_element_vec_load_stores();
+    allowed_instr = {VLE_V, VSE_V, allowed_instr};
+  endfunction
+
+  virtual function void add_byte_aligned_vec_load_stores();
+    allowed_instr = {VLB_V, VSB_V, VLBU_V, allowed_instr};
+  endfunction
+
+  virtual function void add_h_aligned_vec_load_stores();
+    allowed_instr = {VLH_V, VSH_V, VLHU_V, allowed_instr};
+  endfunction
+
+  virtual function void add_w_aligned_vec_load_stores();
+    allowed_instr = {VLW_V, VSW_V, VLWU_V, allowed_instr};
+  endfunction
+
+  virtual function void randomize_vec_load_store_instr();
+    randomize_instr(load_store_instr, .skip_rs1(1'b1), .skip_imm(1'b1), .disable_dist(1'b1));
+  endfunction
+
+  virtual function void configure_vec_load_store_instr();
+    load_store_instr.gen_rand_fields(cfg);
+    load_store_instr.rs1 = rs1_reg;
+    load_store_instr.process_load_store = 0;
   endfunction
 
 endclass

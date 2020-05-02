@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+typedef class riscv_instr_gen_config;
+
 class riscv_instr_base extends uvm_object;
 
   rand riscv_instr_group_t      group;
@@ -29,6 +31,12 @@ class riscv_instr_base extends uvm_object;
   rand riscv_fpr_t              fs2;
   rand riscv_fpr_t              fs3;
   rand riscv_fpr_t              fd;
+  rand riscv_vec_reg_t          vd;
+  rand riscv_vec_reg_t          vs1;
+  rand riscv_vec_reg_t          vs2;
+  rand riscv_vec_reg_t          vs3;
+  rand bit                      vm;
+  rand bit                      wd;
   rand bit [31:0]               imm;
   rand imm_t                    imm_type;
   rand bit [4:0]                imm_len;
@@ -58,6 +66,9 @@ class riscv_instr_base extends uvm_object;
   string                        label;
   bit                           is_local_numeric_label;
   int                           idx = -1;
+
+  // Some additional reserved registers
+  riscv_reg_t reserved_rd[];
 
   `uvm_object_utils(riscv_instr_base)
 
@@ -102,6 +113,7 @@ class riscv_instr_base extends uvm_object;
       }
     }
     imm_len <= 20;
+    if (group == RVV) {imm_len == 5;}
   }
 
   constraint legal_operand_c {
@@ -449,6 +461,469 @@ class riscv_instr_base extends uvm_object;
   // Supervisor Instructions
   `add_instr(SFENCE_VMA, R_FORMAT,SYNCH,RV32I)
 
+
+  // -------------------------------------------------------------------------
+  //  Section 7. Vector Loads and Stores
+  // -------------------------------------------------------------------------
+  // Section 7.4 - Vector Unit-Stride Instructions
+  `add_instr(VLE_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VSE_V, VS_FORMAT, STORE, RVV)
+  `add_instr(VLB_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VSB_V, VS_FORMAT, STORE, RVV)
+  `add_instr(VLH_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VSH_V, VS_FORMAT, STORE, RVV)
+  `add_instr(VLW_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VSW_V, VS_FORMAT, STORE, RVV)
+  `add_instr(VLBU_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLHU_V, VS_FORMAT, LOAD, RVV)
+  `add_instr(VLWU_V, VL_FORMAT, LOAD, RVV)
+  // Section 7.5 - Vector Strided Instructions
+  `add_instr(VLSB_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSH_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSW_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSBU_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSHU_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSWU_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VLSE_V, VLS_FORMAT, LOAD, RVV)
+  `add_instr(VSSB_V, VSS_FORMAT, STORE, RVV)
+  `add_instr(VSSH_V, VSS_FORMAT, STORE, RVV)
+  `add_instr(VSSW_V, VSS_FORMAT, STORE, RVV)
+  `add_instr(VSSE_V, VSS_FORMAT, STORE, RVV)
+  // Section 7.6 - Vector Indexed Instructions
+  `add_instr(VLXB_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXH_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXW_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXBU_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXHU_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXWU_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VLXE_V, VLV_FORMAT, LOAD, RVV)
+  `add_instr(VSXB_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSXH_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSXW_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSXE_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSUXB_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSUXH_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSUXW_V, VSV_FORMAT, STORE, RVV)
+  `add_instr(VSUXE_V, VSV_FORMAT, STORE, RVV)
+  // Section 7.7 - Vector Unit-Stride Fault-Only-First Loads
+  `add_instr(VLBFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLHFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLWFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLBUFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLHUFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLWUFF_V, VL_FORMAT, LOAD, RVV)
+  `add_instr(VLEFF_V, VL_FORMAT, LOAD, RVV)
+
+  // -------------------------------------------------------------------------
+  //  Section 8. Vector AMO Operations (Zvamo)
+  // -------------------------------------------------------------------------
+  // 32-bit vector AMOs
+  `add_instr(VAMOSWAPW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOADDW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOXORW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOANDW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOORW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMINW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMAXW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMINUW_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMAXUW_V, VAMO_FORMAT, AMO, RVV)
+  // SEW-bit Vector AMO
+  `add_instr(VAMOSWAPE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOADDE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOXORE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOANDE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOORE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMINE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMAXE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMINUE_V, VAMO_FORMAT, AMO, RVV)
+  `add_instr(VAMOMAXUE_V, VAMO_FORMAT, AMO, RVV)
+
+  // -------------------------------------------------------------------------
+  //  Section 12. Vector Integer Arithmetic Instructions
+  // -------------------------------------------------------------------------
+  // Section 12.1 - Vector Single-Width Integer Add and Subtract
+  `add_instr(VADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VADD_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VADD_VI, VI_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VSUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSUB_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VRSUB_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VRSUB_VI, VI_FORMAT, ARITHMETIC, RVV, IMM)
+  // Section 12.2 - Vector Widening Integer Add/Subtract
+  `add_instr(VWADDU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADDU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUBU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUBU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADD_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUB_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADDU_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADDU_WX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUBU_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUBU_WX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADD_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWADD_WX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUB_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWSUB_WX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 12.3 - Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
+  `add_instr(VADC_VVM, VV1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VADC_VXM, VX1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VADC_VIM, VI1_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VMADC_VVM, VV1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADC_VXM, VX1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADC_VIM, VI1_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VMADC_VV, VV5_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADC_VX, VX5_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADC_VI, VI5_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VSBC_VVM, VV1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSBC_VXM, VX1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMSBC_VVM, VV1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMSBC_VXM, VX1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMSBC_VV, VV5_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMSBC_VX, VX5_FORMAT, ARITHMETIC, RVV)
+  // Section 12.4 - Vector Bitwise Logical Instructions
+  `add_instr(VAND_VV, VV_FORMAT, LOGICAL, RVV)
+  `add_instr(VAND_VX, VX_FORMAT, LOGICAL, RVV)
+  `add_instr(VAND_VI, VI_FORMAT, LOGICAL, RVV, IMM)
+  `add_instr(VOR_VV, VV_FORMAT, LOGICAL, RVV)
+  `add_instr(VOR_VX, VX_FORMAT, LOGICAL, RVV)
+  `add_instr(VOR_VI, VI_FORMAT, LOGICAL, RVV, IMM)
+  `add_instr(VXOR_VV, VV_FORMAT, LOGICAL, RVV)
+  `add_instr(VXOR_VX, VX_FORMAT, LOGICAL, RVV)
+  `add_instr(VXOR_VI, VI_FORMAT, LOGICAL, RVV, IMM)
+  // Section 12.5 - Vector Single-Width Bit Shift Instructions
+  `add_instr(VSLL_VV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VSLL_VX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VSLL_VI, VI_FORMAT, SHIFT, RVV, UIMM)
+  `add_instr(VSRL_VV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VSRL_VX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VSRL_VI, VI_FORMAT, SHIFT, RVV, UIMM)
+  `add_instr(VSRA_VV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VSRA_VX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VSRA_VI, VI_FORMAT, SHIFT, RVV, UIMM)
+  // Section 12.6 - Vector Narrowing Integer Right Shift Instructions
+  `add_instr(VNSRL_WV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VNSRL_WX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VNSRL_WI, VI_FORMAT, SHIFT, RVV, UIMM)
+  `add_instr(VNSRA_WV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VNSRA_WX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VNSRA_WI, VI_FORMAT, SHIFT, RVV, UIMM)
+  // Section 12.7 - Vector Integer Comparison Instructions
+  `add_instr(VMSEQ_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSEQ_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSEQ_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  `add_instr(VMSNE_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSNE_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSNE_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  `add_instr(VMSLTU_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLTU_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLT_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLT_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLEU_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLEU_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLEU_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  `add_instr(VMSLE_VV, VV_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLE_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSLE_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  `add_instr(VMSGTU_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSGTU_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  `add_instr(VMSGT_VX, VX_FORMAT, COMPARE, RVV)
+  `add_instr(VMSGT_VI, VI_FORMAT, COMPARE, RVV, IMM)
+  // Section 12.8 - Vector Integer Min/Max Instructions
+  `add_instr(VMINU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMINU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMIN_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMIN_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMAXU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMAXU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMAX_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMAX_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 12.9 - Vector Single-Width Integer Multiply Instructions
+  `add_instr(VMUL_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMUL_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULH_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULH_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULHU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULHU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULHSU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMULHSU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 12.10 - Vector Integer Divide Instructions
+  `add_instr(VDIVU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VDIVU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VDIV_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VDIV_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREMU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREMU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREM_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREM_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 12.11 - Vector Widening Integer Multiply Instructions
+  `add_instr(VWMUL_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMUL_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMULU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMULU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMULSU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMULSU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 12.12 - Vector Single-Width Integer Multiply-Add Instructions
+  `add_instr(VMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMACC_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNMSAC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNMSAC_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADD_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMADD_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNMSUB_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNMSUB_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  // Section 12.13 - Vector Widening Integer Multiply-Add Instructions
+  `add_instr(VWMACCU_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACCU_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACC_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACCSU_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACCSU_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWMACCUS_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  // Section 12.14 - Vector Quad-Widening Integer Multiply-Add Instructions
+  `add_instr(VQMACCU_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACCU_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACC_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACCSU_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACCSU_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VQMACCUS_VX, VX2_FORMAT, ARITHMETIC, RVV)
+  // Section 12.15 - Vector Integer Merge Instructions
+  `add_instr(VMERGE_VVM, VV1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMERGE_VXM, VX1_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMERGE_VIM, VI1_FORMAT, ARITHMETIC, RVV, IMM)
+  // Section 12.16 - Vector Integer Move Instructions
+  `add_instr(VMV_V_V, VV3_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMV_V_X, VX3_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMV_V_I, VI3_FORMAT, ARITHMETIC, RVV, IMM)
+  // -------------------------------------------------------------------------
+  //  Section 13. Vector Fixed-Point Arithmetic Instructions
+  // -------------------------------------------------------------------------
+  // Section 13.1 - Vector Single-Width Saturating Add and Subtract
+  `add_instr(VSADDU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSADDU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSADDU_VI, VI_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VSADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSADD_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSADD_VI, VI_FORMAT, ARITHMETIC, RVV, IMM)
+  `add_instr(VSSUBU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSSUBU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSSUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSSUB_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 13.2 - Vector Single-Width Averaging Add and Subtract
+  `add_instr(VAADDU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VAADDU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VAADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VAADD_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VASUBU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VASUBU_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VASUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VASUB_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 13.3 - Vector Single-Width Fractional Multiply with Rounding and Saturation
+  `add_instr(VSMUL_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSMUL_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 13.4 - Vector Single-Width Scaling Shift Instructions
+  `add_instr(VSSRL_VV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VSSRL_VX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VSSRL_VI, VI_FORMAT, SHIFT, RVV, UIMM)
+  `add_instr(VSSRA_VV, VV_FORMAT, SHIFT, RVV)
+  `add_instr(VSSRA_VX, VX_FORMAT, SHIFT, RVV)
+  `add_instr(VSSRA_VI, VI_FORMAT, SHIFT, RVV, UIMM)
+  // Section 13.5 - Vector Narrowing Fixed-Point Clip Instructions
+  `add_instr(VNCLIPU_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNCLIPU_WX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNCLIPU_WI, VI_FORMAT, ARITHMETIC, RVV, UIMM)
+  `add_instr(VNCLIP_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNCLIP_WX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VNCLIP_WI, VI_FORMAT, ARITHMETIC, RVV, UIMM)
+  // -------------------------------------------------------------------------
+  //  Section 14. Vector Floating-Point Instructions
+  // -------------------------------------------------------------------------
+  // Section 14.2 - Vector Single-Width Floating-Point Add/Subtract Instructions
+  `add_instr(VFADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFADD_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSUB_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFRSUB_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.3 - Vector Widening Floating-Point Add/Subtract Instructions
+  `add_instr(VFWADD_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWADD_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWSUB_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWSUB_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWADD_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWADD_WF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWSUB_WV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWSUB_WF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.4 - Vector Single-Width Floating-Point Multiply/Divide Instructions
+  `add_instr(VFMUL_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMUL_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFDIV_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFDIV_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFRDIV_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.5 - Vector Widening Floating-Point Multiply
+  `add_instr(VFWMUL_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWMUL_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.6 - Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+  `add_instr(VFMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMACC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMACC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMSAC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMSAC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMSAC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMSAC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMADD_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMADD_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMADD_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMADD_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMSUB_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMSUB_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMSUB_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNMSUB_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  // Section 14.7 - Vector Widening Floating-Point Fused Multiply-Add Instructions
+  `add_instr(VFWMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWMACC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWNMACC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWNMACC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWMSAC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWMSAC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWNMSAC_VV, VV2_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWNMSAC_VF, VF2_FORMAT, ARITHMETIC, RVV)
+  // Section 14.8 - Vector Floating-Point Square-Root Instructions
+  `add_instr(VFSQRT_V, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 14.9 - Vector Floating-Point MIN/MAX Instructions
+  `add_instr(VFMIN_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMIN_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMAX_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMAX_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.10 - Vector Floating-Point Sign-Injection Instructions
+  `add_instr(VFSGNJ_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSGNJ_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSGNJN_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSGNJN_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSGNJX_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFSGNJX_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.11 - Vector Floating-Point Compare Instructions
+  `add_instr(VMFEQ_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFEQ_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFNE_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFNE_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFLT_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFLT_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFLE_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFLE_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFGT_VF, VF_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMFGE_VF, VF_FORMAT, ARITHMETIC, RVV)
+  // Section 14.12 - Vector Floating-Point Classify Instruction
+  `add_instr(VFCLASS_V, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 14.13 - Vector Floating-Point Merge Instruction
+  `add_instr(VFMERGE_VFM, VF1_FORMAT, ARITHMETIC, RVV)
+  // Section 14.14 - Vector Floating-Point Move Instruction
+  `add_instr(VFMV_V_F, VF3_FORMAT, ARITHMETIC, RVV)
+  // Section 14.15 - Single-Width Floating-Point/Integer Type-Convert Instructions
+  `add_instr(VFCVT_XU_F_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFCVT_X_F_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFCVT_F_XU_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFCVT_F_X_V, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 14.16 - Widening Floating-Point/Integer Type-Convert Instructions
+  `add_instr(VFWCVT_XU_F_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWCVT_X_F_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWCVT_F_XU_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWCVT_F_X_V, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWCVT_F_F_V, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 14.17 - Narrowing Floating-Point/Integer Type-Convert Instructions
+  `add_instr(VFNCVT_XU_F_W, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNCVT_X_F_W, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNCVT_F_XU_W, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNCVT_F_X_W, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNCVT_F_F_W, VV4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFNCVT_ROD_F_F_W, VV4_FORMAT, ARITHMETIC, RVV)
+  // -------------------------------------------------------------------------
+  //  Section 15. Vector Reduction Operations
+  // -------------------------------------------------------------------------
+  // Section 15.1 - Vector Single-Width Integer Reduction Instructions
+  `add_instr(VREDSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDMAXU_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDMAX_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDMINU_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDMIN_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDAND_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDOR_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VREDXOR_VS, VV_FORMAT, ARITHMETIC, RVV)
+  // Section 15.2 - Vector Widening Integer Reduction Instructions
+  `add_instr(VWREDSUMU_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VWREDSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  // Section 15.3 - Vector Single-Width Floating-Point Reduction Instructions
+  `add_instr(VFREDOSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFREDSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFREDMAX_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFREDMIN_VS, VV_FORMAT, ARITHMETIC, RVV)
+  // Section 15.4 - Vector Widening Floating-Point Reduction Instructions
+  `add_instr(VFWREDOSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFWREDSUM_VS, VV_FORMAT, ARITHMETIC, RVV)
+  // -------------------------------------------------------------------------
+  //  Section 16. Vector Mask Instructions
+  // -------------------------------------------------------------------------
+  // Section 16.1 - Vector Mask-Register Logical Instructions
+  `add_instr(VMAND_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMNAND_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMANDNOT_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMXOR_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMOR_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMNOR_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMORNOT_MM, VV5_FORMAT, LOGICAL, RVV)
+  `add_instr(VMXNOR_MM, VV5_FORMAT, LOGICAL, RVV)
+  // Section 16.2 - Vector Mask Population Count vpopc
+  `add_instr(VPOPC_M, VV6_FORMAT, ARITHMETIC, RVV)
+  // Section 16.3 - vfirst find-first-set mask bit
+  `add_instr(VFIRST_M, VV6_FORMAT, ARITHMETIC, RVV)
+  // Section 16.4 - VMSBF.M Set-Before-First Mask Bit
+  `add_instr(VMSBF_M, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 16.5 - VMSIF.M Set-Including-First Mask Bit
+  `add_instr(VMSIF_M, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 16.6 - VMSOF.M Set-Only-First Mask Bit
+  `add_instr(VMSOF_M, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 16.8 - Vector Iota Instruction
+  `add_instr(VIOTA_M, VV4_FORMAT, ARITHMETIC, RVV)
+  // Section 16.9 - Vector Element Index Instruction
+  `add_instr(VID_V, VV7_FORMAT, ARITHMETIC, RVV)
+  // -------------------------------------------------------------------------
+  //  Section 17. Vector Permutation Instructions
+  // -------------------------------------------------------------------------
+  // Section 17.1 - Integer Scalar Move Instruction
+  `add_instr(VMV_X_S, VV8_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VMV_S_X, VX3_FORMAT, ARITHMETIC, RVV)
+  // Section 17.2 - Floating-Point Scalar Move Instruction
+  `add_instr(VFMV_F_S, VF4_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VFMV_S_F, VF3_FORMAT, ARITHMETIC, RVV)
+  // Section 17.3.1 - Vector Slideup Instruction
+  `add_instr(VSLIDEUP_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSLIDEUP_VI, VI_FORMAT, ARITHMETIC, RVV, UIMM)
+  // Section 17.3.2 - Vector Slidedown Instruction
+  `add_instr(VSLIDEDOWN_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VSLIDEDOWN_VI, VI_FORMAT, ARITHMETIC, RVV, UIMM)
+  // Section 17.3.3 - Vector Slide1up
+  `add_instr(VSLIDE1UP_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 17.3.4 - Vector Slide1down Instruction
+  `add_instr(VSLIDE1DOWN_VX, VX_FORMAT, ARITHMETIC, RVV)
+  // Section 17.4 - Vector Register Gather Instruction
+  `add_instr(VRGATHER_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VRGATHER_VX, VX_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VRGATHER_VI, VI_FORMAT, ARITHMETIC, RVV, UIMM)
+  // Section 17.5 - Vector Compress Instruction
+  `add_instr(VCOMPRESS_VM, VV5_FORMAT, ARITHMETIC, RVV)
+  // Section 17.6 - Whole Vector Register Move
+  // -------------------------------------------------------------------------
+  //  Section 19. Divided Element Extension ('Zvediv')
+  // -------------------------------------------------------------------------
+  // Section 19.3 - Vector Integer Dot-Product Instruction
+  `add_instr(VDOTU_VV, VV_FORMAT, ARITHMETIC, RVV)
+  `add_instr(VDOT_VV, VV_FORMAT, ARITHMETIC, RVV)
+  // Section 19.4 - Vector Floating-Point Dot-Product Instruction
+  `add_instr(VFDOT_VV, VV_FORMAT, ARITHMETIC, RVV)
+
+
   function void post_randomize();
     if (group inside {RV32C, RV64C, RV128C, RV32DC, RV32FC}) begin
       is_compressed = 1'b1;
@@ -521,7 +996,7 @@ class riscv_instr_base extends uvm_object;
     end
   endfunction
 
-  function void mask_imm();
+  virtual function void mask_imm();
     // Process the immediate value and sign extension
     if (imm_type inside {UIMM, NZUIMM}) begin
       imm = imm & ~imm_mask;
@@ -538,26 +1013,58 @@ class riscv_instr_base extends uvm_object;
     end
   endfunction
 
-  function void gen_rand_imm();
-    if (!randomize(imm)) begin
-      `uvm_fatal(`gfn, "Cannot randomize imm")
-    end
+  virtual function void gen_rand_fields(riscv_instr_gen_config cfg,
+                                        riscv_reg_t avail_regs[]={}, riscv_reg_t cant_write_regs[]={},
+                                        bit skip_rs1=0, bit skip_rs2=0, bit skip_rd=0, bit skip_imm=0, bit skip_csr=0);
+    if (group == RVV) gen_rand_vec_args(cfg);
+    if (has_imm && !skip_imm) gen_rand_imm();
+    if (has_rs1 && !skip_rs1) gen_rand_rs1(cfg, avail_regs);
+    if (has_rs2 && !skip_rs2) gen_rand_rs2(cfg, avail_regs);
+    if (has_rd && !skip_rd) gen_rand_rd(cfg, avail_regs, cant_write_regs);
+    if ((category == CSR) && !skip_csr) gen_rand_csr(cfg);
+    if (has_fs1) gen_rand_fs1();
+    if (has_fs2) gen_rand_fs2();
+    if (has_fs3) gen_rand_fs3();
+    if (has_fd) gen_rand_fd();
+  endfunction
+
+  virtual function void gen_rand_rs1(riscv_instr_gen_config cfg, riscv_reg_t avail_regs[]);
+    rs1 = gen_rand_gpr(.included_reg(avail_regs),
+                       .excluded_reg(is_compressed ? {reserved_rd, cfg.reserved_regs} : {}));
+  endfunction
+
+  virtual function void gen_rand_rs2(riscv_instr_gen_config cfg, riscv_reg_t avail_regs[]);
+    rs2 = gen_rand_gpr(.included_reg(avail_regs));
+  endfunction
+
+  virtual function void gen_rand_rd(riscv_instr_gen_config cfg, riscv_reg_t avail_regs[], riscv_reg_t cant_write_regs[]);
+    riscv_reg_t excld[] = {reserved_rd, cfg.reserved_regs, cant_write_regs};
+    if (instr_name == C_LUI) excld = {excld, SP};
+    rd = gen_rand_gpr(.included_reg(avail_regs), .excluded_reg(excld));
+  endfunction
+
+  virtual function void gen_rand_fs1(); fs1 = gen_rand_fpr(); endfunction
+  virtual function void gen_rand_fs2(); fs2 = gen_rand_fpr(); endfunction
+  virtual function void gen_rand_fs3(); fs3 = gen_rand_fpr(); endfunction
+  virtual function void gen_rand_fd(); fd = gen_rand_fpr(); endfunction
+
+  virtual function void gen_rand_imm();
+    assert (randomize(imm)) else `uvm_fatal(`gfn, $sformatf("Cannot randomize imm for %s", instr_name.name()))
     mask_imm();
     update_imm_str();
   endfunction
 
-  function void update_imm_str();
+  virtual function void update_imm_str();
     imm_str = $sformatf("%0d", $signed(imm));
   endfunction
 
-  function void set_imm(int imm);
+  virtual function void set_imm(int imm);
     this.imm = imm;
     mask_imm();
     update_imm_str();
   endfunction
 
-  function riscv_reg_t gen_rand_gpr(riscv_reg_t included_reg[] = {},
-                                    riscv_reg_t excluded_reg[] = {});
+  virtual function riscv_reg_t gen_rand_gpr(riscv_reg_t included_reg[] = {}, riscv_reg_t excluded_reg[] = {});
     riscv_reg_t gpr;
     int unsigned i;
     riscv_reg_t legal_gpr[$];
@@ -597,7 +1104,7 @@ class riscv_instr_base extends uvm_object;
     return gpr;
   endfunction
 
-  function riscv_fpr_t gen_rand_fpr(riscv_fpr_t excluded_reg[] = {});
+  virtual function riscv_fpr_t gen_rand_fpr(riscv_fpr_t excluded_reg[] = {});
     riscv_fpr_t fpr;
     `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(fpr,
                                        if (excluded_reg.size() > 0) {
@@ -609,26 +1116,225 @@ class riscv_instr_base extends uvm_object;
     return fpr;
   endfunction
 
-  function void gen_rand_csr(bit illegal_csr_instr = 0,
-                             bit enable_floating_point = 0,
-                             privileged_mode_t privileged_mode = MACHINE_MODE);
+  virtual function void gen_rand_csr(riscv_instr_gen_config cfg);
     privileged_reg_t preg[$];
-    if (illegal_csr_instr) begin
+    if (cfg.enable_illegal_csr_instruction) begin
       `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(csr, !(csr inside {implemented_csr});)
     end else begin
       // Use scratch register to avoid the side effect of modifying other privileged mode CSR.
-      if (privileged_mode == MACHINE_MODE)
+      if (cfg.init_privileged_mode == MACHINE_MODE)
         preg = {MSCRATCH};
-      else if (privileged_mode == SUPERVISOR_MODE)
+      else if (cfg.init_privileged_mode == SUPERVISOR_MODE)
         preg = {SSCRATCH};
       else
         preg = {USCRATCH};
-      if (enable_floating_point) begin
+      if (cfg.enable_floating_point) begin
         preg = {preg, FFLAGS, FRM, FCSR};
         `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(csr, csr inside {preg};)
       end else begin
         csr = preg[0];
       end
+    end
+  endfunction
+
+  virtual function void gen_rand_vec_args(riscv_instr_gen_config cfg);
+    // TODO: set has_* fields to only generate needed regs
+    calc_vec_reg_groups();
+    gen_rand_vd(cfg);
+    gen_rand_vs1(cfg);
+    gen_rand_vs2(cfg);
+    gen_rand_vs3(cfg);
+    gen_rand_vm();
+    gen_rand_wd();
+    has_rd = 1;
+    has_rs1 = 1;
+    has_fd = 1;
+    has_fs1 = 1;
+  endfunction
+
+  static riscv_vec_reg_t vec_reg_group_heads_lmul[int][$] = '{
+      1:{riscv_all_vec_reg_q},
+      2:{V0, V2, V4, V6, V8, V10, V12, V14, V16, V18, V20, V22, V24, V26, V28, V30},
+      4:{V0, V4, V8, V12, V16, V20, V24, V28},
+      8:{V0, V8, V16, V24},
+      16:{V0, V16}
+    };
+
+  static riscv_vec_reg_t vec_regs_in_a_group[int][riscv_vec_reg_t][$] = '{
+      1:'{V0:{V0}, V1:{V1}, V2:{V2}, V3:{V3}, V4:{V4}, V5:{V5}, V6:{V6}, V7:{V7}, V8:{V8}, V9:{V9}, V10:{V10},
+          V11:{V11}, V12:{V12}, V13:{V13}, V14:{V14}, V15:{V15}, V16:{V16}, V17:{V17}, V18:{V18}, V19:{V19}, V20:{V20},
+          V21:{V21}, V22:{V22}, V23:{V23}, V24:{V24}, V25:{V25}, V26:{V26}, V27:{V27}, V28:{V28}, V29:{V29}, V30:{V30},
+          V31:{V31}},
+      2:'{V0:{V0, V1}, V1:{V0, V1}, V2:{V2, V3}, V3:{V2, V3}, V4:{V4, V5}, V5:{V4, V5}, V6:{V6, V7}, V7:{V6, V7},
+          V8:{V8, V9}, V9:{V8, V9}, V10:{V10, V11}, V11:{V10, V11}, V12:{V12, V13}, V13:{V12, V13},
+          V14:{V14, V15}, V15:{V14, V15}, V16:{V16, V17}, V17:{V16, V17}, V18:{V18, V19}, V19:{V18, V19},
+          V20:{V20, V21}, V21:{V20, V21}, V22:{V22, V23}, V23:{V22, V23}, V24:{V24, V25}, V25:{V24, V25},
+          V26:{V26, V27}, V27:{V26, V27}, V28:{V28, V29}, V29:{V28, V29}, V30:{V30, V31}, V31:{V30, V31}},
+      4:'{V0:{V0, V1, V2, V3}, V1:{V0, V1, V2, V3}, V2:{V0, V1, V2, V3}, V3:{V0, V1, V2, V3},
+          V4:{V4, V5, V6, V7}, V5:{V4, V5, V6, V7}, V6:{V4, V5, V6, V7}, V7:{V4, V5, V6, V7},
+          V8:{V8, V9, V10, V11}, V9:{V8, V9, V10, V11}, V10:{V8, V9, V10, V11}, V11:{V8, V9, V10, V11},
+          V12:{V12, V13, V14, V15}, V13:{V12, V13, V14, V15}, V14:{V12, V13, V14, V15}, V15:{V12, V13, V14, V15},
+          V16:{V16, V17, V18, V19}, V17:{V16, V17, V18, V19}, V18:{V16, V17, V18, V19}, V19:{V16, V17, V18, V19},
+          V20:{V20, V21, V22, V23}, V21:{V20, V21, V22, V23}, V22:{V20, V21, V22, V23}, V23:{V20, V21, V22, V23},
+          V24:{V24, V25, V26, V27}, V25:{V24, V25, V26, V27}, V26:{V24, V25, V26, V27}, V27:{V24, V25, V26, V27},
+          V28:{V28, V29, V30, V31}, V29:{V28, V29, V30, V31}, V30:{V28, V29, V30, V31}, V31:{V28, V29, V30, V31}},
+      8:'{V0:{V0, V1, V2, V3, V4, V5, V6, V7}, V1:{V0, V1, V2, V3, V4, V5, V6, V7}, V2:{V0, V1, V2, V3, V4, V5, V6, V7},
+          V3:{V0, V1, V2, V3, V4, V5, V6, V7}, V4:{V0, V1, V2, V3, V4, V5, V6, V7}, V5:{V0, V1, V2, V3, V4, V5, V6, V7},
+          V6:{V0, V1, V2, V3, V4, V5, V6, V7}, V7:{V0, V1, V2, V3, V4, V5, V6, V7},
+          V8:{V8, V9, V10, V11, V12, V13, V14, V15}, V9:{V8, V9, V10, V11, V12, V13, V14, V15},
+          V10:{V8, V9, V10, V11, V12, V13, V14, V15}, V11:{V8, V9, V10, V11, V12, V13, V14, V15},
+          V12:{V8, V9, V10, V11, V12, V13, V14, V15}, V13:{V8, V9, V10, V11, V12, V13, V14, V15},
+          V14:{V8, V9, V10, V11, V12, V13, V14, V15}, V15:{V8, V9, V10, V11, V12, V13, V14, V15},
+          V16:{V16, V17, V18, V19, V20, V21, V22, V23}, V17:{V16, V17, V18, V19, V20, V21, V22, V23},
+          V18:{V16, V17, V18, V19, V20, V21, V22, V23}, V19:{V16, V17, V18, V19, V20, V21, V22, V23},
+          V20:{V16, V17, V18, V19, V20, V21, V22, V23}, V21:{V16, V17, V18, V19, V20, V21, V22, V23},
+          V22:{V16, V17, V18, V19, V20, V21, V22, V23}, V23:{V16, V17, V18, V19, V20, V21, V22, V23},
+          V24:{V24, V25, V26, V27, V28, V29, V30, V31}, V25:{V24, V25, V26, V27, V28, V29, V30, V31},
+          V26:{V24, V25, V26, V27, V28, V29, V30, V31}, V27:{V24, V25, V26, V27, V28, V29, V30, V31},
+          V28:{V24, V25, V26, V27, V28, V29, V30, V31}, V29:{V24, V25, V26, V27, V28, V29, V30, V31},
+          V30:{V24, V25, V26, V27, V28, V29, V30, V31}, V31:{V24, V25, V26, V27, V28, V29, V30, V31}},
+      16:'{V0:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V1:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V2:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V3:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V4:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V5:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V6:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V7:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V8:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V9:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V10:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V11:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V12:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V13:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V14:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V15:{V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15},
+           V16:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V17:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V18:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V19:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V20:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V21:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V22:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V23:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V24:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V25:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V26:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V27:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V28:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V29:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V30:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31},
+           V31:{V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31}}
+    };
+
+  riscv_vec_reg_t src_grp_heads[$];
+  riscv_vec_reg_t dst_grp_heads[$];
+  riscv_vec_reg_t vs2_widening_grp_heads[$];
+  riscv_vec_reg_t vd_group[$];
+  bit is_narrowing, is_vs2_widening, no_vec_src_dst_overlap, vd_cant_be_mask, no_mask_dst_overlap;
+  int widening_shift;
+
+  virtual function void calc_vec_reg_groups();
+    widening_shift = instr_name inside {vec_widening_instr};
+    widening_shift = instr_name inside {vec_quad_widening_instr} ? 2 : widening_shift;
+    is_narrowing = instr_name inside {vec_narrowing_instr};
+    is_vs2_widening = instr_name inside {vec_widening_vs2};
+    vd_cant_be_mask = LMUL > 1 && instr_name inside {vec_forced_mask_instr};
+    no_vec_src_dst_overlap = (instr_name inside {vec_illegal_src_dest_overlap_instr})
+                             || (LMUL > 1 && instr_name inside {vec_no_src_dst_overlap_with_lmul});
+    no_mask_dst_overlap = instr_name inside {vec_illegal_mask_dest_overlap_instr};
+    dst_grp_heads = vec_reg_group_heads_lmul[LMUL << widening_shift];
+    src_grp_heads = vec_reg_group_heads_lmul[LMUL << is_narrowing];
+    vs2_widening_grp_heads = vec_reg_group_heads_lmul[LMUL << is_vs2_widening];
+  endfunction
+
+  virtual function void gen_rand_vd(riscv_instr_gen_config cfg);
+    riscv_vec_reg_t hzd[$] = cfg.get_hazard_vec_reg_set();
+    bit success = 0;
+    int attempts = 0;
+    while (!success && attempts < 2) begin
+      success = std::randomize(vd) with {
+          vd inside {hzd};
+          vd inside {dst_grp_heads};
+          if (vd_cant_be_mask) vd != V0;
+        };
+      attempts++;
+      hzd = riscv_all_vec_reg_q;
+    end
+    assert (success) else begin
+      `uvm_fatal(`gfn, $sformatf({"gen_rand_vd failed:\ninstr_name:%s",
+        "\nLMUL:%0d\nwidening_shift:%0d\nis_narrowing:%0d\nvd_cant_be_mask:%0d\ndst_grp_heads:%p"},
+        instr_name.name(), LMUL, widening_shift, is_narrowing, vd_cant_be_mask, dst_grp_heads))
+    end
+    vd_group = vec_regs_in_a_group[LMUL << max_shift()][vd];
+    cfg.build_hazard_vec_reg_set(vd);
+  endfunction
+
+  virtual function int max_shift();
+    if (widening_shift > is_narrowing) return widening_shift;
+    return is_narrowing;
+  endfunction
+
+  virtual function void gen_rand_vs1(riscv_instr_gen_config cfg);
+    vs1 = get_rand_src_reg(cfg);
+  endfunction
+
+  virtual function void gen_rand_vs2(riscv_instr_gen_config cfg);
+    vs2 = get_rand_src_reg(cfg, 1);
+  endfunction
+
+  virtual function void gen_rand_vs3(riscv_instr_gen_config cfg);
+    vs3 = get_rand_src_reg(cfg);
+  endfunction
+
+  virtual function riscv_vec_reg_t get_rand_src_reg(riscv_instr_gen_config cfg, bit is_vs2=0);
+    riscv_vec_reg_t hzd[$] = cfg.get_hazard_vec_reg_set();
+    bit success = 0;
+    int attempts = 0;
+
+    // If we can't successfully generate with the list of hazard registers,
+    // try again without it.
+    while (!success && attempts < 2) begin
+      success = std::randomize(get_rand_src_reg) with {
+          get_rand_src_reg inside {hzd};
+          if (is_vs2 && is_vs2_widening) {
+            get_rand_src_reg inside {vs2_widening_grp_heads};
+          } else {
+            get_rand_src_reg inside {src_grp_heads};
+          }
+          if (no_vec_src_dst_overlap) {!(get_rand_src_reg inside {vd_group});}
+        };
+      attempts++;
+      hzd = riscv_all_vec_reg_q;
+    end
+    assert (success) else begin
+      `uvm_fatal(`gfn, $sformatf({"get_rand_src_reg failed:\ninstr_name:%s\nis_vs2:%0d",
+        "\nLMUL:%0d\widening_shift:%0d\nis_vs2_widening:%0d\nis_narrowing:%0d\nno_vec_src_dst_overlap:%0d",
+        "\nsrc_grp_heads:%p\nvs2_widening_grp_heads:%p\nvd_group:%p\n\n"},
+        instr_name.name(), is_vs2,
+        LMUL,widening_shift, is_vs2_widening, is_narrowing, no_vec_src_dst_overlap,
+        src_grp_heads, vs2_widening_grp_heads, vd_group))
+    end
+    cfg.build_hazard_vec_reg_set(get_rand_src_reg);
+  endfunction
+
+  virtual function void gen_rand_vm();
+    bit success = std::randomize(vm) with {
+        if (LMUL > 1 && vd == V0) {vm;} // RVV spec section 5.3
+        if (widening_shift && vd == V0) {vm;} // RVV spec section 11.2
+        if (no_mask_dst_overlap && vd == V0) {vm;}
+      };
+    assert (success) else begin
+      `uvm_fatal(`gfn, $sformatf({"gen_rand_vm failed:",
+        "\ninstr_name:%s\nLMUL:%0d\nvd:%s\widening_shift:%0d\nno_mask_dst_overlap:%0d\n\n"},
+        instr_name.name(), LMUL, vd.name(),widening_shift, no_mask_dst_overlap))
+    end
+  endfunction
+
+  virtual function void gen_rand_wd();
+    bit success = std::randomize(wd);
+    assert (success) else begin
+      `uvm_fatal(`gfn, $sformatf({"gen_rand_wd failed:", "\ninstr_name:%s"}, instr_name.name()))
     end
   endfunction
 
@@ -747,6 +1453,92 @@ class riscv_instr_base extends uvm_object;
           end
         CJ_FORMAT:
           asm_str = $sformatf("%0s%0s", asm_str, get_imm());
+
+        VL_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s)%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  scalar_reg_to_str(rs1), vec_vm_str());
+        VS_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s)%s", vec_instr_name_to_str(), vec_reg_to_str(vs3),
+                                                  scalar_reg_to_str(rs1), vec_vm_str());
+        VLS_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s), %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  scalar_reg_to_str(rs1), scalar_reg_to_str(rs2), vec_vm_str());
+        VSS_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s), %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vs3),
+                                                  scalar_reg_to_str(rs1), scalar_reg_to_str(rs2), vec_vm_str());
+        VLV_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s), %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  scalar_reg_to_str(rs1), vec_reg_to_str(vs2), vec_vm_str());
+        VSV_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s), %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vs3),
+                                                  scalar_reg_to_str(rs1), vec_reg_to_str(vs2), vec_vm_str());
+        VV_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    vec_reg_to_str(vs2), vec_reg_to_str(vs1), vec_vm_str());
+        VX_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    vec_reg_to_str(vs2), scalar_reg_to_str(rs1), vec_vm_str());
+        VF_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    vec_reg_to_str(vs2), float_reg_to_str(fs1), vec_vm_str());
+        VI_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    vec_reg_to_str(vs2), get_imm(), vec_vm_str());
+        VV1_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s, v0", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                      vec_reg_to_str(vs2), vec_reg_to_str(vs1));
+        VX1_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s, v0", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                      vec_reg_to_str(vs2), scalar_reg_to_str(rs1));
+        VF1_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s, v0", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                      vec_reg_to_str(vs2), float_reg_to_str(fs1));
+        VI1_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s, v0", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                      vec_reg_to_str(vs2), get_imm());
+        VV2_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    vec_reg_to_str(vs1), vec_reg_to_str(vs2), vec_vm_str());
+        VX2_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    scalar_reg_to_str(rs1), vec_reg_to_str(vs2), vec_vm_str());
+        VF2_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                    float_reg_to_str(fs1), vec_reg_to_str(vs2), vec_vm_str());
+        VV3_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd), vec_reg_to_str(vs1));
+        VX3_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd), scalar_reg_to_str(rs1));
+        VF3_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd), float_reg_to_str(fs1));
+        VI3_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd), get_imm());
+        VV4_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                vec_reg_to_str(vs2), vec_vm_str());
+        VV5_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  vec_reg_to_str(vs2), vec_reg_to_str(vs1));
+        VX5_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  vec_reg_to_str(vs2), scalar_reg_to_str(rs1));
+        VI5_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s", vec_instr_name_to_str(), vec_reg_to_str(vd),
+                                                  vec_reg_to_str(vs2), get_imm());
+        VV6_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s%s", vec_instr_name_to_str(), rd.name(),
+                                                vec_reg_to_str(vs2), vec_vm_str());
+        VX6_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s, %s", vec_instr_name_to_str(), rd.name(),
+                                                  vec_reg_to_str(vs2), scalar_reg_to_str(rs1));
+        VV7_FORMAT:
+          asm_str = $sformatf("%-10s %s%s", vec_instr_name_to_str(), vec_reg_to_str(vd), vec_vm_str());
+        VF4_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), float_reg_to_str(fd), vec_reg_to_str(vs2));
+        VV8_FORMAT:
+          asm_str = $sformatf("%-10s %s, %s", vec_instr_name_to_str(), rd.name(), vec_reg_to_str(vs2));
+        VAMO_FORMAT:
+          asm_str = $sformatf("%-10s %s, (%s), %s, %s, %s", vec_instr_name_to_str(), vec_wd_str(0), scalar_reg_to_str(rs1), vec_reg_to_str(vs2), vec_wd_str(1), vec_vm_str());
       endcase
     end else if (group inside {RV32A, RV64A}) begin
       if (instr_name inside {LR_W, LR_D}) begin
@@ -768,7 +1560,7 @@ class riscv_instr_base extends uvm_object;
     return asm_str.tolower();
   endfunction
 
-  function bit [6:0] get_opcode();
+  virtual function bit [6:0] get_opcode();
     case (instr_name) inside
       LUI                                                          : get_opcode = 7'b0110111;
       AUIPC                                                        : get_opcode = 7'b0010111;
@@ -791,7 +1583,7 @@ class riscv_instr_base extends uvm_object;
   endfunction
 
   // Get opcode for compressed instruction
-  function bit [1:0] get_c_opcode();
+  virtual function bit [1:0] get_c_opcode();
     case (instr_name) inside
       C_ADDI4SPN, C_FLD, C_FLD, C_LQ, C_LW, C_FLW,
       C_LD, C_FSD, C_SQ, C_SW, C_FSW, C_SD            : get_c_opcode = 2'b00;
@@ -806,7 +1598,7 @@ class riscv_instr_base extends uvm_object;
     endcase
   endfunction
 
-  function bit [2:0] get_func3();
+  virtual function bit [2:0] get_func3();
     case (instr_name) inside
       JALR       : get_func3 = 3'b000;
       BEQ        : get_func3 = 3'b000;
@@ -932,7 +1724,7 @@ class riscv_instr_base extends uvm_object;
     endcase
   endfunction
 
-  function bit [6:0] get_func7();
+  virtual function bit [6:0] get_func7();
     case (instr_name)
       SLLI   : get_func7 = 7'b0000000;
       SRLI   : get_func7 = 7'b0000000;
@@ -1151,7 +1943,7 @@ class riscv_instr_base extends uvm_object;
   endfunction
 
   // Get RVC register name for CIW, CL, CS, CB format
-  function bit [2:0] get_c_gpr(riscv_reg_t gpr);
+  virtual function bit [2:0] get_c_gpr(riscv_reg_t gpr);
     return gpr[2:0];
   endfunction
 
@@ -1198,6 +1990,120 @@ class riscv_instr_base extends uvm_object;
     this.has_fs3           = obj.has_fs3;
     this.has_fd            = obj.has_fd;
     this.is_floating_point = obj.is_floating_point;
+    this.vd                = obj.vd;
+    this.vs1               = obj.vs1;
+    this.vs2               = obj.vs2;
+    this.vs3               = obj.vs3;
+    this.vm                = obj.vm;
+  endfunction
+
+  static string vec_instr_name_map[riscv_instr_name_t] = '{
+    VLE_V:"vle.v", VSE_V:"vse.v", VLB_V:"vlb.v", VSB_V:"vsb.v", VLH_V:"vlh.v", VSH_V:"vsh.v", VLW_V:"vlw.v",
+    VSW_V:"vsw.v", VLBU_V:"vlbu.v", VLHU_V:"vlhu.v", VLWU_V:"vlwu.v", VLSB_V:"vlsb.v", VLSH_V:"vlsh.v", VLSW_V:"vlsw.v",
+    VLSBU_V:"vlsbu.v", VLSHU_V:"vlshu.v", VLSWU_V:"vlswu.v", VLSE_V:"vlse.v", VSSB_V:"vssb.v", VSSH_V:"vssh.v",
+    VSSW_V:"vssw.v", VSSE_V:"vsse.v", VLXB_V:"vlxb.v", VLXH_V:"vlxh.v", VLXW_V:"vlxw.v", VLXBU_V:"vlxbu.v",
+    VLXHU_V:"vlxhu.v", VLXWU_V:"vlxwu.v", VLXE_V:"vlxe.v", VSXB_V:"vsxb.v", VSXH_V:"vsxh.v", VSXW_V:"vsxw.v",
+    VSXE_V:"vsxe.v", VSUXB_V:"vsuxb.v", VSUXH_V:"vsuxh.v", VSUXW_V:"vsuxw.v", VSUXE_V:"vsuxe.v", VLBFF_V:"vlbff.v",
+    VLHFF_V:"vlhff.v", VLWFF_V:"vlwff.v", VLBUFF_V:"vlbuff.v", VLHUFF_V:"vlhuff.v", VLWUFF_V:"vlwuff.v",
+    VLEFF_V:"vleff.v", VADD_VV:"vadd.vv", VADD_VX:"vadd.vx", VADD_VI:"vadd.vi", VSUB_VV:"vsub.vv", VSUB_VX:"vsub.vx",
+    VRSUB_VX:"vrsub.vx", VRSUB_VI:"vrsub.vi", VWADDU_VV:"vwaddu.vv", VWADDU_VX:"vwaddu.vx", VWSUBU_VV:"vwsubu.vv",
+    VWSUBU_VX:"vwsubu.vx", VWADD_VV:"vwadd.vv", VWADD_VX:"vwadd.vx", VWSUB_VV:"vwsub.vv", VWSUB_VX:"vwsub.vx",
+    VWADDU_WV:"vwaddu.wv", VWADDU_WX:"vwaddu.wx", VWSUBU_WV:"vwsubu.wv", VWSUBU_WX:"vwsubu.wx", VWADD_WV:"vwadd.wv",
+    VWADD_WX:"vwadd.wx", VWSUB_WV:"vwsub.wv", VWSUB_WX:"vwsub.wx", VADC_VVM:"vadc.vvm", VADC_VXM:"vadc.vxm",
+    VADC_VIM:"vadc.vim", VMADC_VVM:"vmadc.vvm", VMADC_VXM:"vmadc.vxm", VMADC_VIM:"vmadc.vim", VMADC_VV:"vmadc.vv",
+    VMADC_VX:"vmadc.vx", VMADC_VI:"vmadc.vi", VSBC_VVM:"vsbc.vvm", VSBC_VXM:"vsbc.vxm", VMSBC_VVM:"vmsbc.vvm",
+    VMSBC_VXM:"vmsbc.vxm", VMSBC_VV:"vmsbc.vv", VMSBC_VX:"vmsbc.vx", VAND_VV:"vand.vv", VAND_VX:"vand.vx",
+    VAND_VI:"vand.vi", VOR_VV:"vor.vv", VOR_VX:"vor.vx", VOR_VI:"vor.vi", VXOR_VV:"vxor.vv", VXOR_VX:"vxor.vx",
+    VXOR_VI:"vxor.vi", VSLL_VV:"vsll.vv", VSLL_VX:"vsll.vx", VSLL_VI:"vsll.vi", VSRL_VV:"vsrl.vv", VSRL_VX:"vsrl.vx",
+    VSRL_VI:"vsrl.vi", VSRA_VV:"vsra.vv", VSRA_VX:"vsra.vx", VSRA_VI:"vsra.vi", VNSRL_WV:"vnsrl.wv",
+    VNSRL_WX:"vnsrl.wx", VNSRL_WI:"vnsrl.wi", VNSRA_WV:"vnsra.wv", VNSRA_WX:"vnsra.wx", VNSRA_WI:"vnsra.wi",
+    VMSEQ_VV:"vmseq.vv", VMSEQ_VX:"vmseq.vx", VMSEQ_VI:"vmseq.vi", VMSNE_VV:"vmsne.vv", VMSNE_VX:"vmsne.vx",
+    VMSNE_VI:"vmsne.vi", VMSLTU_VV:"vmsltu.vv", VMSLTU_VX:"vmsltu.vx", VMSLT_VV:"vmslt.vv", VMSLT_VX:"vmslt.vx",
+    VMSLEU_VV:"vmsleu.vv", VMSLEU_VX:"vmsleu.vx", VMSLEU_VI:"vmsleu.vi", VMSLE_VV:"vmsle.vv", VMSLE_VX:"vmsle.vx",
+    VMSLE_VI:"vmsle.vi", VMSGTU_VX:"vmsgtu.vx", VMSGTU_VI:"vmsgtu.vi", VMSGT_VX:"vmsgt.vx", VMSGT_VI:"vmsgt.vi",
+    VMINU_VV:"vminu.vv", VMINU_VX:"vminu.vx", VMIN_VV:"vmin.vv", VMIN_VX:"vmin.vx", VMAXU_VV:"vmaxu.vv",
+    VMAXU_VX:"vmaxu.vx", VMAX_VV:"vmax.vv", VMAX_VX:"vmax.vx", VMUL_VV:"vmul.vv", VMUL_VX:"vmul.vx",
+    VMULH_VV:"vmulh.vv", VMULH_VX:"vmulh.vx", VMULHU_VV:"vmulhu.vv", VMULHU_VX:"vmulhu.vx", VMULHSU_VV:"vmulhsu.vv",
+    VMULHSU_VX:"vmulhsu.vx", VDIVU_VV:"vdivu.vv", VDIVU_VX:"vdivu.vx", VDIV_VV:"vdiv.vv", VDIV_VX:"vdiv.vx",
+    VREMU_VV:"vremu.vv", VREMU_VX:"vremu.vx", VREM_VV:"vrem.vv", VREM_VX:"vrem.vx", VWMUL_VV:"vmul.vv",
+    VWMUL_VX:"vmul.vx", VWMULU_VV:"vmulhu.vv", VWMULU_VX:"vmulhu.vx", VWMULSU_VV:"vmulhsu.vv", VWMULSU_VX:"vmulhsu.vx",
+    VMACC_VV:"vmacc.vv", VMACC_VX:"vmacc.vx", VNMSAC_VV:"vnmsac.vv", VNMSAC_VX:"vnmsac.vx", VMADD_VV:"vmadd.vv",
+    VMADD_VX:"vmadd.vx", VNMSUB_VV:"vnmsub.vv", VNMSUB_VX:"vnmsub.vx", VWMACCU_VV:"vwmaccu.vv", VWMACCU_VX:"vwmaccu.vx",
+    VWMACC_VV:"vwmacc.vv", VWMACC_VX:"vwmacc.vx", VWMACCSU_VV:"vwmaccsu.vv", VWMACCSU_VX:"vwmaccsu.vx",
+    VWMACCUS_VX:"vwmaccus.vx", VQMACCU_VV:"vqmaccu.vv", VQMACCU_VX:"vqmaccu.vx", VQMACC_VV:"vqmacc.vv",
+    VQMACC_VX:"vqmacc.vx", VQMACCSU_VV:"vqmaccsu.vv", VQMACCSU_VX:"vqmaccsu.vx", VQMACCUS_VX:"vqmaccus.vx",
+    VMERGE_VVM:"vmerge.vvm", VMERGE_VXM:"vmerge.vxm", VMERGE_VIM:"vmerge.vim", VMV_V_V:"vmv.v.v", VMV_V_X:"vmv.v.x",
+    VMV_V_I:"vmv.v.i", VSADDU_VV:"vsaddu.vv", VSADDU_VX:"vsaddu.vx", VSADDU_VI:"vsaddu.vi", VSADD_VV:"vsadd.vv",
+    VSADD_VX:"vsadd.vx", VSADD_VI:"vsadd.vi", VSSUBU_VV:"vssubu.vv", VSSUBU_VX:"vssubu.vx", VSSUB_VV:"vssub.vv",
+    VSSUB_VX:"vssub.vx", VAADD_VV:"vaadd.vv", VAADD_VX:"vaadd.vx", VAADDU_VV:"vaaddu.vv", VAADDU_VX:"vaaddu.vx",
+    VASUBU_VV:"vasubu.vv", VASUBU_VX:"vasubu.vx", VASUB_VV:"vasub.vv", VASUB_VX:"vasub.vx", VSMUL_VV:"vsmul.vv",
+    VSMUL_VX:"vsmul.vx", VSSRL_VV:"vssrl.vv", VSSRL_VX:"vssrl.vx", VSSRL_VI:"vssrl.vi", VSSRA_VV:"vssra.vv",
+    VSSRA_VX:"vssra.vx", VSSRA_VI:"vssra.vi", VNCLIPU_WV:"vnclipu.wv", VNCLIPU_WX:"vnclipu.wx", VNCLIPU_WI:"vnclipu.wi",
+    VNCLIP_WV:"vnclip.wv", VNCLIP_WX:"vnclip.wx", VNCLIP_WI:"vnclip.wi", VFADD_VV:"vfadd.vv", VFADD_VF:"vfadd.vf",
+    VFSUB_VV:"vfsub.vv", VFSUB_VF:"vfsub.vf", VFRSUB_VF:"vfrsub.vf", VFWADD_VV:"vfwadd.vv", VFWADD_VF:"vfwadd.vf",
+    VFWSUB_VV:"vfwsub.vv", VFWSUB_VF:"vfwsub.vf", VFWADD_WV:"vfwadd.wv", VFWADD_WF:"vfwadd.wf", VFWSUB_WV:"vfwsub.wv",
+    VFWSUB_WF:"vfwsub.wf", VFMUL_VV:"vfmul.vv", VFMUL_VF:"vfmul.vf", VFDIV_VV:"vfdiv.vv", VFDIV_VF:"vfdiv.vf",
+    VFRDIV_VF:"vfrdiv.vf", VFWMUL_VV:"vfwmul.vv", VFWMUL_VF:"vfwmul.vf", VFMACC_VV:"vfmacc.vv", VFMACC_VF:"vfmacc.vf",
+    VFNMACC_VV:"vfnmacc.vv", VFNMACC_VF:"vfnmacc.vf", VFMSAC_VV:"vfmsac.vv", VFMSAC_VF:"vfmsac.vf",
+    VFNMSAC_VV:"vfnmsac.vv", VFNMSAC_VF:"vfnmsac.vf", VFMADD_VV:"vfmadd.vv", VFMADD_VF:"vfmadd.vf",
+    VFNMADD_VV:"vfnmadd.vv", VFNMADD_VF:"vfnmadd.vf", VFMSUB_VV:"vfmsub.vv", VFMSUB_VF:"vfmsub.vf",
+    VFNMSUB_VV:"vfnmsub.vv", VFNMSUB_VF:"vfnmsub.vf", VFWMACC_VV:"vfwmacc.vv", VFWMACC_VF:"vfwmacc.vf",
+    VFWNMACC_VV:"vfwnmacc.vv", VFWNMACC_VF:"vfwnmacc.vf", VFWMSAC_VV:"vfwmsac.vv", VFWMSAC_VF:"vfwmsac.vf",
+    VFWNMSAC_VV:"vfwnmsac.vv", VFWNMSAC_VF:"vfwnmsac.vf", VFSQRT_V:"vfsqrt.v", VFMIN_VV:"vfmin.vv", VFMIN_VF:"vfmin.vf",
+    VFMAX_VV:"vfmax.vv", VFMAX_VF:"vfmax.vf", VFSGNJ_VV:"vfsgnj.vv", VFSGNJ_VF:"vfsgnj.vf", VFSGNJN_VV:"vfsgnjn.vv",
+    VFSGNJN_VF:"vfsgnjn.vf", VFSGNJX_VV:"vfsgnjx.vv", VFSGNJX_VF:"vfsgnjx.vf", VMFEQ_VV:"vmfeq.vv", VMFEQ_VF:"vmfeq.vf",
+    VMFNE_VV:"vmfne.vv", VMFNE_VF:"vmfne.vf", VMFLT_VV:"vmflt.vv", VMFLT_VF:"vmflt.vf", VMFLE_VV:"vmfle.vv",
+    VMFLE_VF:"vmfle.vf", VMFGT_VF:"vmfgt.vf", VMFGE_VF:"vmfge.vf", VFCLASS_V:"vfclass.v", VFMERGE_VFM:"vfmerge.vfm",
+    VFMV_V_F:"vfmv.v.f", VFCVT_XU_F_V:"vfcvt.xu.f.v", VFCVT_X_F_V:"vfcvt.x.f.v", VFCVT_F_XU_V:"vfcvt.f.xu.v",
+    VFCVT_F_X_V:"vfcvt.f.x.v", VFWCVT_XU_F_V:"vfwcvt.xu.f.v", VFWCVT_X_F_V:"vfwcvt.x.f.v", VFWCVT_F_XU_V:"vfwcvt.f.xu.v",
+    VFWCVT_F_X_V:"vfwcvt.f.x.v", VFWCVT_F_F_V:"vfwcvt.f.x.v", VFNCVT_XU_F_W:"vfncvt.xu.f.w",
+    VFNCVT_X_F_W:"vfncvt.x.f.w", VFNCVT_F_XU_W:"vfncvt.f.xu.w", VFNCVT_F_X_W:"vfncvt.f.x.w",
+    VFNCVT_F_F_W:"vfncvt.f.x.w", VFNCVT_ROD_F_F_W:"vfncvt.rod.f.f.w", VREDSUM_VS:"vredsum.vs",
+    VREDMAXU_VS:"vredmaxu.vs", VREDMAX_VS:"vredmax.vs", VREDMINU_VS:"vredminu.vs", VREDMIN_VS:"vredmin.vs",
+    VREDAND_VS:"vredand.vs", VREDOR_VS:"vredor.vs", VREDXOR_VS:"vredxor.vs", VWREDSUMU_VS:"vwredsumu.vs",
+    VWREDSUM_VS:"vwredsum.vs", VFREDOSUM_VS:"vfredosum.vs", VFREDMAX_VS:"vfredmax.vs", VFWREDOSUM_VS:"vfwredosum.vs",
+    VFWREDSUM_VS:"vfwredsum.vs", VMAND_MM:"vmand.mm", VMNAND_MM:"vmnand.mm", VMANDNOT_MM:"vmandnot.mm",
+    VMXOR_MM:"vmxor.mm", VMOR_MM:"vmor.mm", VMNOR_MM:"vmnor.mm", VMORNOT_MM:"vmornot.mm", VMXNOR_MM:"vmxnor.mm",
+    VMSBF_M:"vmsbf.m", VMSIF_M:"vmsif.m", VMSOF_M:"vmsof.m", VIOTA_M:"viota.m", VID_V:"vid.v", VMV_X_S:"vmv.x.s",
+    VMV_S_X:"vmv.s.x", VFMV_F_S:"vfmv.f.s", VFMV_S_F:"vfmv.s.f", VSLIDE1UP_VX:"vslide1up.vx",
+    VSLIDE1DOWN_VX:"vslide1down.vx", VRGATHER_VV:"vrgather.vv", VRGATHER_VX:"vrgather.vx", VRGATHER_VI:"vrgather.vi",
+    VDOTU_VV:"vdotu.vv", VDOT_VV:"vdot.vv", VFDOT_VV:"vfdot.vv", VFREDSUM_VS:"vfredsum.vs", VFREDMIN_VS:"vfredmin.vs",
+    VPOPC_M:"vpopc.m", VFIRST_M:"vfirst.m", VSLIDEUP_VX:"vslideup.vx", VSLIDEUP_VI:"vslideup.vi",
+    VSLIDEDOWN_VX:"vslidedown.vx", VSLIDEDOWN_VI:"vslidedown.vi", VCOMPRESS_VM:"vcompress.vm",
+    VAMOSWAPW_V:"vamoswapw.v", VAMOADDW_V:"vamoaddw.v", VAMOXORW_V:"vamoxorw.v", VAMOANDW_V:"vamoandw.v",
+    VAMOORW_V:"vamoorw.v", VAMOMINW_V:"vamominw.v", VAMOMAXW_V:"vamomaxw.v", VAMOMINUW_V:"vamominuw.v",
+    VAMOMAXUW_V:"vamomaxuw.v", VAMOSWAPE_V:"vamoswape.v", VAMOADDE_V:"vamoadde.v", VAMOXORE_V:"vamoxore.v",
+    VAMOANDE_V:"vamoande.v", VAMOORE_V:"vamoore.v", VAMOMINE_V:"vamomine.v", VAMOMAXE_V:"vamomaxe.v",
+    VAMOMINUE_V:"vamominue.v", VAMOMAXUE_V:"vamomaxue.v"
+  };
+
+  virtual function string vec_instr_name_to_str();
+    if (vec_instr_name_map.exists(instr_name)) return vec_instr_name_map[instr_name];
+    vec_instr_name_to_str = instr_name.name();
+    vec_instr_name_to_str = vec_instr_name_to_str.tolower();
+  endfunction
+
+  virtual function string vec_reg_to_str(riscv_vec_reg_t vreg);
+    vec_reg_to_str = vreg.name();
+    vec_reg_to_str = vec_reg_to_str.tolower();
+  endfunction
+
+  virtual function string scalar_reg_to_str(riscv_reg_t sreg);
+    scalar_reg_to_str = sreg.name();
+    scalar_reg_to_str = scalar_reg_to_str.tolower();
+  endfunction
+
+  virtual function string float_reg_to_str(riscv_fpr_t freg);
+    float_reg_to_str = freg.name();
+    float_reg_to_str = float_reg_to_str.tolower();
+  endfunction
+
+  virtual function string vec_wd_str(bit reg_sel);
+    vec_wd_str = wd ? vd.name() : reg_sel ? vec_reg_to_str(vs3) : "x0";
+  endfunction
+
+  virtual function string vec_vm_str();
+    vec_vm_str = vm ? "" : ", v0.t";
   endfunction
 
 endclass

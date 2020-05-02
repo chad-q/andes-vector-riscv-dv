@@ -25,6 +25,10 @@ class riscv_directed_instr_stream extends riscv_rand_instr_stream;
     super.new(name);
   endfunction
 
+  virtual function bit repeat_instr();
+    return 0;
+  endfunction
+
   function void post_randomize();
     foreach(instr_list[i]) begin
       instr_list[i].has_label = 1'b0;
@@ -81,6 +85,47 @@ class riscv_mem_access_stream extends riscv_directed_instr_stream;
       randomize_instr(instr);
       insert_instr(instr);
     end
+  endfunction
+
+  virtual function void randomize_avail_regs();
+    if(avail_regs.size() > 0) begin
+      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(avail_regs,
+                                         unique{avail_regs};
+                                         avail_regs[0] inside {[S0 : A5]};
+                                         foreach(avail_regs[i]) {
+                                           !(avail_regs[i] inside {cfg.reserved_regs, reserved_rd});
+                                         },
+                                         "Cannot randomize avail_regs")
+    end
+  endfunction
+
+  virtual function bit repeat_instr();
+    return 0;
+  endfunction
+
+  virtual function int get_addr_alignment_mask(int alignment_bytes);
+    return alignment_bytes - 1;
+  endfunction
+
+  virtual function bit is_aligned_to_bytes(int a, int alignment_bytes);
+    return (a & get_addr_alignment_mask(alignment_bytes)) == 0;
+  endfunction
+
+  virtual function bit is_h_aligned(int a);
+    return is_aligned_to_bytes(a, 2);
+  endfunction
+
+  virtual function bit is_w_aligned(int a);
+    return is_aligned_to_bytes(a, 4);
+  endfunction
+
+  virtual function bit is_d_aligned(int a);
+    return is_aligned_to_bytes(a, 8);
+  endfunction
+
+  virtual function bit is_element_aligned(int a);
+    int bits_per_byte = 8;
+    return is_aligned_to_bytes(a, SEW / bits_per_byte);
   endfunction
 
 endclass
@@ -196,6 +241,10 @@ class riscv_jal_instr extends riscv_rand_instr_stream;
     super.new(name);
   endfunction
 
+  virtual function bit repeat_instr();
+    return 0;
+  endfunction
+
   function void post_randomize();
     int order[];
     order = new[num_of_jump_instr];
@@ -268,6 +317,10 @@ class riscv_push_stack_instr extends riscv_rand_instr_stream;
 
   function new(string name = "");
     super.new(name);
+  endfunction
+
+  virtual function bit repeat_instr();
+    return 0;
   endfunction
 
   function void init();
@@ -353,6 +406,10 @@ class riscv_pop_stack_instr extends riscv_rand_instr_stream;
     super.new(name);
   endfunction
 
+  virtual function bit repeat_instr();
+    return 0;
+  endfunction
+
   function void init();
     reserved_rd = {cfg.ra};
     num_of_reg_to_save = saved_regs.size();
@@ -415,6 +472,10 @@ class riscv_long_branch_instr extends riscv_rand_instr_stream;
     backward_branch_instr_stream = riscv_rand_instr_stream::type_id::
                                   create("backward_branch_instr_stream");
     jump_instr = riscv_instr_base::type_id::create("jump_instr");
+  endfunction
+
+  virtual function bit repeat_instr();
+    return 0;
   endfunction
 
   function void init(int instr_len);
@@ -507,6 +568,10 @@ class riscv_sw_interrupt_instr extends riscv_directed_instr_stream;
     li_instr = riscv_pseudo_instr::type_id::create("li_instr");
     csr_instr = riscv_instr_base::type_id::create("csr_instr");
     ip = riscv_privil_reg::type_id::create("ip");
+  endfunction
+
+  virtual function bit repeat_instr();
+    return 0;
   endfunction
 
   function void post_randomize();

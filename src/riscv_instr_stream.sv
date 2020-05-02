@@ -33,7 +33,7 @@ class riscv_instr_stream extends uvm_object;
   `uvm_object_new
 
   // Initialize the instruction stream, create each instruction instance
-  function void initialize_instr_list(int unsigned instr_cnt);
+  virtual function void initialize_instr_list(int unsigned instr_cnt);
     instr_list = {};
     this.instr_cnt = instr_cnt;
     create_instr_instance();
@@ -49,7 +49,7 @@ class riscv_instr_stream extends uvm_object;
 
   // Insert an instruction to the existing instruction stream at the given index
   // When index is -1, the instruction is injected at a random location
-  function void insert_instr(riscv_instr_base instr, int idx = -1);
+  virtual function void insert_instr(riscv_instr_base instr, int idx = -1);
     int current_instr_cnt = instr_list.size();
     if(idx == -1) begin
       idx = $urandom_range(0, current_instr_cnt-1);
@@ -70,7 +70,7 @@ class riscv_instr_stream extends uvm_object;
   // Insert an instruction to the existing instruction stream at the given index
   // When index is -1, the instruction is injected at a random location
   // When replace is 1, the original instruction at the inserted position will be replaced
-  function void insert_instr_stream(riscv_instr_base new_instr[], int idx = -1, bit replace = 1'b0);
+  virtual function void insert_instr_stream(riscv_instr_base new_instr[], int idx = -1, bit replace = 1'b0);
     int current_instr_cnt = instr_list.size();
     int new_instr_cnt = new_instr.size();
     if(current_instr_cnt == 0) begin
@@ -119,7 +119,7 @@ class riscv_instr_stream extends uvm_object;
   // Mix the input instruction stream with the original instruction, the instruction order is
   // preserved. When 'contained' is set, the original instruction stream will be inside the
   // new instruction stream with the first and last instruction from the input instruction stream.
-  function void mix_instr_stream(riscv_instr_base new_instr[], bit contained = 1'b0);
+  virtual function void mix_instr_stream(riscv_instr_base new_instr[], bit contained = 1'b0);
     int current_instr_cnt = instr_list.size();
     int insert_instr_position[];
     int new_instr_cnt = new_instr.size();
@@ -141,7 +141,7 @@ class riscv_instr_stream extends uvm_object;
     end
   endfunction
 
-  function string convert2string();
+  virtual function string convert2string();
     string str;
     foreach(instr_list[i])
       str = {str, instr_list[i].convert2asm(), "\n"};
@@ -185,7 +185,7 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
     setup_instruction_dist(no_branch, no_load_store);
   endfunction
 
-  function setup_instruction_dist(bit no_branch = 1'b0, bit no_load_store = 1'b1);
+  virtual function void setup_instruction_dist(bit no_branch = 1'b0, bit no_load_store = 1'b1);
     if (cfg.dist_control_mode) begin
       category_dist = cfg.category_dist;
       if (no_branch) begin
@@ -213,7 +213,7 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
     end
   endfunction
 
-  function void randomize_instr(riscv_instr_base instr,
+  virtual function void randomize_instr(riscv_instr_base instr,
                                 bit is_in_debug = 1'b0,
                                 bit skip_rs1 = 1'b0,
                                 bit skip_rs2 = 1'b0,
@@ -221,33 +221,12 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
                                 bit skip_imm = 1'b0,
                                 bit skip_csr = 1'b0,
                                 bit disable_dist = 1'b0);
-    riscv_instr_name_t instr_name;
-    if ((cfg.dist_control_mode == 1) && !disable_dist) begin
-      riscv_instr_category_t category;
-      int unsigned idx;
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(category,
-        category dist {LOAD       := category_dist[LOAD],
-                       STORE      := category_dist[STORE],
-                       SHIFT      := category_dist[SHIFT],
-                       ARITHMETIC := category_dist[ARITHMETIC],
-                       LOGICAL    := category_dist[LOGICAL],
-                       COMPARE    := category_dist[COMPARE],
-                       BRANCH     := category_dist[BRANCH],
-                       SYNCH      := category_dist[SYNCH],
-                       CSR        := category_dist[CSR]};)
-      idx = $urandom_range(0, cfg.instr_category[category].size() - 1);
-      instr_name = cfg.instr_category[category][idx];
-    // if set_dcsr_ebreak is set, we do not want to generate any ebreak
-    // instructions inside the debug_rom
-    end else if ((cfg.no_ebreak && !is_in_debug) ||
-                 (!cfg.enable_ebreak_in_debug_rom && is_in_debug)) begin
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(instr_name,
-                                        instr_name inside {allowed_instr};
-                                        !(instr_name inside {EBREAK, C_EBREAK});)
-    end else begin
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(instr_name,
-                                         instr_name inside {allowed_instr};)
-    end
+    riscv_instr_name_t instr_name = pick_instr_name(is_in_debug, disable_dist);
+    riscv_reg_t cant_write_regs[$] = {reserved_rd}; // Note that cfg.reserved_regs is added in riscv_instr_base.gen_rand_rd()
+
+    assert (cfg.instr_template.exists(instr_name))
+    else `uvm_fatal(`gfn, {"Instruction not in template: ", instr_name.name()})
+
     instr.copy_base_instr(cfg.instr_template[instr_name]);
     `uvm_info(`gfn, $sformatf("%s: rs1:%0d, rs2:%0d, rd:%0d, imm:%0d",
                               instr.instr_name.name(),
@@ -255,50 +234,64 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
                               instr.has_rs2,
                               instr.has_rd,
                               instr.has_imm), UVM_FULL)
-    if (instr.has_imm && !skip_imm) begin
-      instr.gen_rand_imm();
-    end
-    if (instr.has_rs1 && !skip_rs1) begin
-      if (instr.is_compressed) begin
-        // Compressed instruction could use the same register for rs1 and rd
-        instr.rs1 = instr.gen_rand_gpr(
-                         .included_reg(avail_regs),
-                         .excluded_reg({reserved_rd, cfg.reserved_regs}));
-      end else begin
-        instr.rs1 = instr.gen_rand_gpr(.included_reg(avail_regs));
-      end
-    end
-    if (instr.has_rs2 && !skip_rs2) begin
-      instr.rs2 = instr.gen_rand_gpr(.included_reg(avail_regs));
-    end
-    if (instr.has_rd && !skip_rd) begin
-      if (instr_name == C_LUI) begin
-        instr.rd = instr.gen_rand_gpr(
-                        .included_reg(avail_regs),
-                        .excluded_reg({reserved_rd, cfg.reserved_regs, SP}));
-      end else begin
-        instr.rd = instr.gen_rand_gpr(
-                        .included_reg(avail_regs),
-                        .excluded_reg({reserved_rd, cfg.reserved_regs}));
-      end
-    end
-    if ((instr.category == CSR) && !skip_csr) begin
-      instr.gen_rand_csr(.privileged_mode(cfg.init_privileged_mode),
-                         .enable_floating_point(cfg.enable_floating_point),
-                         .illegal_csr_instr(cfg.enable_illegal_csr_instruction));
-    end
-    if (instr.has_fs1) begin
-      instr.fs1 = instr.gen_rand_fpr();
-    end
-    if (instr.has_fs2) begin
-      instr.fs2 = instr.gen_rand_fpr();
-    end
-    if (instr.has_fs3) begin
-      instr.fs3 = instr.gen_rand_fpr();
-    end
-    if (instr.has_fd) begin
-      instr.fd = instr.gen_rand_fpr();
+    if (instr_name == C_LUI) cant_write_regs.push_back(SP);
+    instr.gen_rand_fields(cfg, avail_regs, cant_write_regs, skip_rs1, skip_rs2, skip_rd, skip_imm, skip_csr);
+  endfunction
+
+  virtual function riscv_instr_name_t pick_instr_name(bit is_in_debug, bit disable_dist);
+    if (repeat_instr()) pick_instr_name = last_instr;
+    else if ((cfg.dist_control_mode == 1) && !disable_dist) pick_instr_name = pick_instr_name_from_category();
+    else pick_instr_name = pick_rand_instr_name(is_in_debug);
+    last_instr = pick_instr_name;
+  endfunction
+
+  virtual function riscv_instr_name_t pick_rand_instr_name(bit is_in_debug);
+    bit success;
+    riscv_instr_name_t avoid_instr[$] = {};
+    if (no_ebreak(is_in_debug)) avoid_instr = {avoid_instr, EBREAK, C_EBREAK};
+
+    success = std::randomize(pick_rand_instr_name) with {
+        pick_rand_instr_name inside {allowed_instr};
+        !(pick_rand_instr_name inside {avoid_instr});
+      };
+
+    assert (success) else begin
+      `uvm_fatal(`gfn, {"Failed to randomize pick_rand_instr_name:",
+                        $sformatf("\nallowed_instr=%p", allowed_instr),
+                        $sformatf("\navoid_instr=%p", avoid_instr)})
     end
   endfunction
+
+  virtual function riscv_instr_name_t pick_instr_name_from_category();
+    riscv_instr_category_t category;
+    int unsigned idx;
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(category,
+      category dist {LOAD       := category_dist[LOAD],
+                     STORE      := category_dist[STORE],
+                     SHIFT      := category_dist[SHIFT],
+                     ARITHMETIC := category_dist[ARITHMETIC],
+                     LOGICAL    := category_dist[LOGICAL],
+                     COMPARE    := category_dist[COMPARE],
+                     BRANCH     := category_dist[BRANCH],
+                     SYNCH      := category_dist[SYNCH],
+                     CSR        := category_dist[CSR]};)
+    idx = $urandom_range(0, cfg.instr_category[category].size() - 1);
+    return cfg.instr_category[category][idx];
+  endfunction
+
+  virtual function bit no_ebreak(bit is_in_debug);
+    // if set_dcsr_ebreak is set, we do not want to generate any ebreak
+    // instructions inside the debug_rom
+    return (cfg.no_ebreak && !is_in_debug) || (!cfg.enable_ebreak_in_debug_rom && is_in_debug);
+  endfunction
+
+  virtual function bit repeat_instr();
+    int prob;
+    if (last_instr == INVALID_INSTR) return 0;
+    if (cfg.repeat_instr_prob == 0) return 0;
+    `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(prob, prob inside {[0:100]};)
+    return prob < cfg.repeat_instr_prob;
+  endfunction
+
 
 endclass

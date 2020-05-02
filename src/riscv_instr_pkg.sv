@@ -86,7 +86,8 @@ package riscv_instr_pkg;
     RV32C,
     RV64C,
     RV128I,
-    RV128C
+    RV128C,
+    RVV // Vector Extension
   } riscv_instr_group_t;
 
   typedef enum {
@@ -318,9 +319,552 @@ package riscv_instr_pkg;
     SRET,
     WFI,
     SFENCE_VMA,
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Vector instructions
+
+    VLE_V, // Load/Stores
+    VSE_V,
+    VLB_V,
+    VSB_V,
+    VLH_V,
+    VSH_V,
+    VLW_V,
+    VSW_V,
+    VLBU_V,
+    VLHU_V,
+    VLWU_V,
+
+    VLSB_V,
+    VLSH_V,
+    VLSW_V,
+    VLSBU_V,
+    VLSHU_V,
+    VLSWU_V,
+    VLSE_V,
+    VSSB_V,
+    VSSH_V,
+    VSSW_V,
+    VSSE_V,
+
+    VLXB_V,
+    VLXH_V,
+    VLXW_V,
+    VLXBU_V,
+    VLXHU_V,
+    VLXWU_V,
+    VLXE_V,
+    VSXB_V,
+    VSXH_V,
+    VSXW_V,
+    VSXE_V,
+    VSUXB_V,
+    VSUXH_V,
+    VSUXW_V,
+    VSUXE_V,
+
+    VLBFF_V,
+    VLHFF_V,
+    VLWFF_V,
+    VLBUFF_V,
+    VLHUFF_V,
+    VLWUFF_V,
+    VLEFF_V,
+
+    // TODO: segmented loads/stores
+
+    VADD_VV, // Integer Arithmetic
+    VADD_VX,
+    VADD_VI,
+    VSUB_VV,
+    VSUB_VX,
+    VRSUB_VX,
+    VRSUB_VI,
+    VWADDU_VV,
+    VWADDU_VX,
+    VWSUBU_VV,
+    VWSUBU_VX,
+    VWADD_VV,
+    VWADD_VX,
+    VWSUB_VV,
+    VWSUB_VX,
+    VWADDU_WV,
+    VWADDU_WX,
+    VWSUBU_WV,
+    VWSUBU_WX,
+    VWADD_WV,
+    VWADD_WX,
+    VWSUB_WV,
+    VWSUB_WX,
+    VADC_VVM,
+    VADC_VXM,
+    VADC_VIM,
+    VMADC_VVM,
+    VMADC_VXM,
+    VMADC_VIM,
+    VMADC_VV,
+    VMADC_VX,
+    VMADC_VI,
+    VSBC_VVM,
+    VSBC_VXM,
+    VMSBC_VVM,
+    VMSBC_VXM,
+    VMSBC_VV,
+    VMSBC_VX,
+    VAND_VV,
+    VAND_VX,
+    VAND_VI,
+    VOR_VV,
+    VOR_VX,
+    VOR_VI,
+    VXOR_VV,
+    VXOR_VX,
+    VXOR_VI,
+    VSLL_VV,
+    VSLL_VX,
+    VSLL_VI,
+    VSRL_VV,
+    VSRL_VX,
+    VSRL_VI,
+    VSRA_VV,
+    VSRA_VX,
+    VSRA_VI,
+    VNSRL_WV,
+    VNSRL_WX,
+    VNSRL_WI,
+    VNSRA_WV,
+    VNSRA_WX,
+    VNSRA_WI,
+    VMSEQ_VV,
+    VMSEQ_VX,
+    VMSEQ_VI,
+    VMSNE_VV,
+    VMSNE_VX,
+    VMSNE_VI,
+    VMSLTU_VV,
+    VMSLTU_VX,
+    VMSLT_VV,
+    VMSLT_VX,
+    VMSLEU_VV,
+    VMSLEU_VX,
+    VMSLEU_VI,
+    VMSLE_VV,
+    VMSLE_VX,
+    VMSLE_VI,
+    VMSGTU_VX,
+    VMSGTU_VI,
+    VMSGT_VX,
+    VMSGT_VI,
+    VMINU_VV,
+    VMINU_VX,
+    VMIN_VV,
+    VMIN_VX,
+    VMAXU_VV,
+    VMAXU_VX,
+    VMAX_VV,
+    VMAX_VX,
+    VMUL_VV,
+    VMUL_VX,
+    VMULH_VV,
+    VMULH_VX,
+    VMULHU_VV,
+    VMULHU_VX,
+    VMULHSU_VV,
+    VMULHSU_VX,
+    VDIVU_VV,
+    VDIVU_VX,
+    VDIV_VV,
+    VDIV_VX,
+    VREMU_VV,
+    VREMU_VX,
+    VREM_VV,
+    VREM_VX,
+    VWMUL_VV,
+    VWMUL_VX,
+    VWMULU_VV,
+    VWMULU_VX,
+    VWMULSU_VV,
+    VWMULSU_VX,
+    VMACC_VV,
+    VMACC_VX,
+    VNMSAC_VV,
+    VNMSAC_VX,
+    VMADD_VV,
+    VMADD_VX,
+    VNMSUB_VV,
+    VNMSUB_VX,
+    VWMACCU_VV,
+    VWMACCU_VX,
+    VWMACC_VV,
+    VWMACC_VX,
+    VWMACCSU_VV,
+    VWMACCSU_VX,
+    VWMACCUS_VX,
+    VQMACCU_VV,
+    VQMACCU_VX,
+    VQMACC_VV,
+    VQMACC_VX,
+    VQMACCSU_VV,
+    VQMACCSU_VX,
+    VQMACCUS_VX,
+    VMERGE_VVM,
+    VMERGE_VXM,
+    VMERGE_VIM,
+    VMV_V_V,
+    VMV_V_X,
+    VMV_V_I,
+
+    VSADDU_VV, // Fixed-Point Arithmetic
+    VSADDU_VX,
+    VSADDU_VI,
+    VSADD_VV,
+    VSADD_VX,
+    VSADD_VI,
+    VSSUBU_VV,
+    VSSUBU_VX,
+    VSSUB_VV,
+    VSSUB_VX,
+    VAADDU_VV,
+    VAADDU_VX,
+    VAADD_VV,
+    VAADD_VX,
+    VASUBU_VV,
+    VASUBU_VX,
+    VASUB_VV,
+    VASUB_VX,
+    VSMUL_VV,
+    VSMUL_VX,
+    VSSRL_VV,
+    VSSRL_VX,
+    VSSRL_VI,
+    VSSRA_VV,
+    VSSRA_VX,
+    VSSRA_VI,
+    VNCLIPU_WV,
+    VNCLIPU_WX,
+    VNCLIPU_WI,
+    VNCLIP_WV,
+    VNCLIP_WX,
+    VNCLIP_WI,
+
+    VFADD_VV, // Floating-Point
+    VFADD_VF,
+    VFSUB_VV,
+    VFSUB_VF,
+    VFRSUB_VF,
+    VFWADD_VV,
+    VFWADD_VF,
+    VFWSUB_VV,
+    VFWSUB_VF,
+    VFWADD_WV,
+    VFWADD_WF,
+    VFWSUB_WV,
+    VFWSUB_WF,
+    VFMUL_VV,
+    VFMUL_VF,
+    VFDIV_VV,
+    VFDIV_VF,
+    VFRDIV_VF,
+    VFWMUL_VV,
+    VFWMUL_VF,
+    VFMACC_VV,
+    VFMACC_VF,
+    VFNMACC_VV,
+    VFNMACC_VF,
+    VFMSAC_VV,
+    VFMSAC_VF,
+    VFNMSAC_VV,
+    VFNMSAC_VF,
+    VFMADD_VV,
+    VFMADD_VF,
+    VFNMADD_VV,
+    VFNMADD_VF,
+    VFMSUB_VV,
+    VFMSUB_VF,
+    VFNMSUB_VV,
+    VFNMSUB_VF,
+    VFWMACC_VV,
+    VFWMACC_VF,
+    VFWNMACC_VV,
+    VFWNMACC_VF,
+    VFWMSAC_VV,
+    VFWMSAC_VF,
+    VFWNMSAC_VV,
+    VFWNMSAC_VF,
+    VFSQRT_V,
+    VFMIN_VV,
+    VFMIN_VF,
+    VFMAX_VV,
+    VFMAX_VF,
+    VFSGNJ_VV,
+    VFSGNJ_VF,
+    VFSGNJN_VV,
+    VFSGNJN_VF,
+    VFSGNJX_VV,
+    VFSGNJX_VF,
+    VMFEQ_VV,
+    VMFEQ_VF,
+    VMFNE_VV,
+    VMFNE_VF,
+    VMFLT_VV,
+    VMFLT_VF,
+    VMFLE_VV,
+    VMFLE_VF,
+    VMFGT_VF,
+    VMFGE_VF,
+    VFCLASS_V,
+    VFMERGE_VFM,
+    VFMV_V_F,
+    VFCVT_XU_F_V,
+    VFCVT_X_F_V,
+    VFCVT_F_XU_V,
+    VFCVT_F_X_V,
+    VFWCVT_XU_F_V,
+    VFWCVT_X_F_V,
+    VFWCVT_F_XU_V,
+    VFWCVT_F_X_V,
+    VFWCVT_F_F_V,
+    VFNCVT_XU_F_W,
+    VFNCVT_X_F_W,
+    VFNCVT_F_XU_W,
+    VFNCVT_F_X_W,
+    VFNCVT_F_F_W,
+    VFNCVT_ROD_F_F_W,
+
+    VREDSUM_VS, // Reduction Operations
+    VREDMAXU_VS,
+    VREDMAX_VS,
+    VREDMINU_VS,
+    VREDMIN_VS,
+    VREDAND_VS,
+    VREDOR_VS,
+    VREDXOR_VS,
+    VWREDSUMU_VS,
+    VWREDSUM_VS,
+    VFREDOSUM_VS,
+    VFREDSUM_VS,
+    VFREDMAX_VS,
+    VFREDMIN_VS,
+    VFWREDOSUM_VS,
+    VFWREDSUM_VS,
+
+    VMAND_MM, // Mask Instructions
+    VMNAND_MM,
+    VMANDNOT_MM,
+    VMXOR_MM,
+    VMOR_MM,
+    VMNOR_MM,
+    VMORNOT_MM,
+    VMXNOR_MM,
+    VPOPC_M,
+    VFIRST_M,
+    VMSBF_M,
+    VMSIF_M,
+    VMSOF_M,
+    VIOTA_M,
+    VID_V,
+
+    VMV_X_S, // Permutation
+    VMV_S_X,
+    VFMV_F_S,
+    VFMV_S_F,
+    VSLIDEUP_VX,
+    VSLIDEUP_VI,
+    VSLIDEDOWN_VX,
+    VSLIDEDOWN_VI,
+    VSLIDE1UP_VX,
+    VSLIDE1DOWN_VX,
+    VRGATHER_VV,
+    VRGATHER_VX,
+    VRGATHER_VI,
+    VCOMPRESS_VM,
+
+    VDOTU_VV, // Dot-Products
+    VDOT_VV,
+    VFDOT_VV,
+
+    // FIXME - Need to add these to a vector AMO instruction stream.
+    VAMOSWAPW_V, // 32-bit Vector AMO
+    VAMOADDW_V,
+    VAMOXORW_V,
+    VAMOANDW_V,
+    VAMOORW_V,
+    VAMOMINW_V,
+    VAMOMAXW_V,
+    VAMOMINUW_V,
+    VAMOMAXUW_V,
+
+    VAMOSWAPE_V, // SEW-bit Vector AMO
+    VAMOADDE_V,
+    VAMOXORE_V,
+    VAMOANDE_V,
+    VAMOORE_V,
+    VAMOMINE_V,
+    VAMOMAXE_V,
+    VAMOMINUE_V,
+    VAMOMAXUE_V,
+
     // You can add other instructions here
     INVALID_INSTR
   } riscv_instr_name_t;
+
+  typedef riscv_instr_name_t riscv_instr_name_t_q[$];
+
+  riscv_instr_name_t all_vec_instr[$] = {
+    // VLE_V, VSE_V, VLB_V, VSB_V, VLH_V, VSH_V, VLW_V, VSW_V, VLBU_V, VLHU_V, VLWU_V, // No loads and stores
+    VADD_VV, VADD_VX,
+    VADD_VI, VSUB_VV, VSUB_VX, VRSUB_VX, VRSUB_VI, VWADDU_VV, VWADDU_VX, VWSUBU_VV, VWSUBU_VX, VWADD_VV,
+    VWADD_VX, VWSUB_VV, VWSUB_VX, VWADDU_WV, VWADDU_WX, VWSUBU_WV, VWSUBU_WX, VWADD_WV, VWADD_WX,
+    VWSUB_WV, VWSUB_WX, VADC_VVM, VADC_VXM, VADC_VIM, VMADC_VVM, VMADC_VXM, VMADC_VIM, VMADC_VV, VMADC_VX,
+    VMADC_VI, VSBC_VVM, VSBC_VXM, VMSBC_VVM, VMSBC_VXM, VMSBC_VV, VMSBC_VX, VAND_VV, VAND_VX, VAND_VI,
+    VOR_VV, VOR_VX, VOR_VI, VXOR_VV, VXOR_VX, VXOR_VI, VSLL_VV, VSLL_VX, VSLL_VI, VSRL_VV, VSRL_VX,
+    VSRL_VI, VSRA_VV, VSRA_VX, VSRA_VI, VNSRL_WV, VNSRL_WX, VNSRL_WI, VNSRA_WV, VNSRA_WX, VNSRA_WI,
+    VMSEQ_VV, VMSEQ_VX, VMSEQ_VI, VMSNE_VV, VMSNE_VX, VMSNE_VI, VMSLTU_VV, VMSLTU_VX, VMSLT_VV, VMSLT_VX,
+    VMSLEU_VV, VMSLEU_VX, VMSLEU_VI, VMSLE_VV, VMSLE_VX, VMSLE_VI, VMSGTU_VX, VMSGTU_VI, VMSGT_VX,
+    VMSGT_VI, VMINU_VV, VMINU_VX, VMIN_VV, VMIN_VX, VMAXU_VV, VMAXU_VX, VMAX_VV, VMAX_VX, VMUL_VV,
+    VMUL_VX, VMULH_VV, VMULH_VX, VMULHU_VV, VMULHU_VX, VMULHSU_VV, VMULHSU_VX, VDIVU_VV, VDIVU_VX,
+    VDIV_VV, VDIV_VX, VREMU_VV, VREMU_VX, VREM_VV, VREM_VX, VWMUL_VV, VWMUL_VX, VWMULU_VV, VWMULU_VX,
+    VWMULSU_VV, VWMULSU_VX, VMACC_VV, VMACC_VX, VNMSAC_VV, VNMSAC_VX, VMADD_VV, VMADD_VX, VNMSUB_VV,
+    VNMSUB_VX, VWMACCU_VV, VWMACCU_VX, VWMACC_VV, VWMACC_VX, VWMACCSU_VV, VWMACCSU_VX, VWMACCUS_VX,
+    VQMACCU_VV, VQMACCU_VX, VQMACC_VV, VQMACC_VX, VQMACCSU_VV, VQMACCSU_VX, VQMACCUS_VX,
+    VMERGE_VVM, VMERGE_VXM, VMERGE_VIM, VMV_V_V, VMV_V_X, VMV_V_I, VSADDU_VV, VSADDU_VX, VSADDU_VI,
+    VSADD_VV, VSADD_VX, VSADD_VI, VSSUBU_VV, VSSUBU_VX, VSSUB_VV, VSSUB_VX, VAADDU_VV, VAADDU_VX, VAADD_VV,
+    VAADD_VX, VASUBU_VV, VASUBU_VX, VASUB_VV, VASUB_VX, VSMUL_VV, VSMUL_VX, VSSRL_VV, VSSRL_VX, VSSRL_VI,
+    VSSRA_VV, VSSRA_VX, VSSRA_VI, VNCLIPU_WV, VNCLIPU_WX, VNCLIPU_WI, VNCLIP_WV, VNCLIP_WX, VNCLIP_WI,
+    VFADD_VV, VFADD_VF, VFSUB_VV, VFSUB_VF, VFRSUB_VF, VFWADD_VV, VFWADD_VF, VFWSUB_VV, VFWSUB_VF,
+    VFWADD_WV, VFWADD_WF, VFWSUB_WV, VFWSUB_WF, VFMUL_VV, VFMUL_VF, VFDIV_VV, VFDIV_VF, VFRDIV_VF,
+    VFWMUL_VV, VFWMUL_VF, VFMACC_VV, VFMACC_VF, VFNMACC_VV, VFNMACC_VF, VFMSAC_VV, VFMSAC_VF, VFNMSAC_VV,
+    VFNMSAC_VF, VFMADD_VV, VFMADD_VF, VFNMADD_VV, VFNMADD_VF, VFMSUB_VV, VFMSUB_VF, VFNMSUB_VV, VFNMSUB_VF,
+    VFWMACC_VV, VFWMACC_VF, VFWNMACC_VV, VFWNMACC_VF, VFWMSAC_VV, VFWMSAC_VF, VFWNMSAC_VV, VFWNMSAC_VF,
+    VFSQRT_V, VFMIN_VV, VFMIN_VF, VFMAX_VV, VFMAX_VF, VFSGNJ_VV, VFSGNJ_VF, VFSGNJN_VV, VFSGNJN_VF,
+    VFSGNJX_VV, VFSGNJX_VF, VMFEQ_VV, VMFEQ_VF, VMFNE_VV, VMFNE_VF, VMFLT_VV, VMFLT_VF, VMFLE_VV, VMFLE_VF,
+    VMFGT_VF, VMFGE_VF, VFCLASS_V, VFMERGE_VFM, VFMV_V_F, VFCVT_XU_F_V, VFCVT_X_F_V,
+    VFCVT_F_XU_V, VFCVT_F_X_V, VFWCVT_XU_F_V, VFWCVT_X_F_V, VFWCVT_F_XU_V, VFWCVT_F_X_V, VFWCVT_F_F_V,
+    VFNCVT_XU_F_W, VFNCVT_X_F_W, VFNCVT_F_XU_W, VFNCVT_F_X_W, VFNCVT_F_F_W, VFNCVT_ROD_F_F_W, VREDSUM_VS,
+    VREDMAXU_VS, VREDMAX_VS, VREDMINU_VS, VREDMIN_VS, VREDAND_VS, VREDOR_VS, VREDXOR_VS, VWREDSUMU_VS,
+    VWREDSUM_VS, VFREDOSUM_VS, VFREDSUM_VS, VFREDMAX_VS, VFREDMIN_VS, VFWREDOSUM_VS, VFWREDSUM_VS,
+    VMAND_MM, VMNAND_MM, VMANDNOT_MM, VMXOR_MM, VMOR_MM, VMNOR_MM, VMORNOT_MM, VMXNOR_MM, VPOPC_M,
+    VFIRST_M, VMSBF_M, VMSIF_M, VMSOF_M, VIOTA_M, VID_V, VMV_X_S, VMV_S_X, VFMV_F_S, VFMV_S_F,
+    VSLIDEUP_VX, VSLIDEUP_VI, VSLIDEDOWN_VX, VSLIDEDOWN_VI, VSLIDE1UP_VX, VSLIDE1DOWN_VX, VRGATHER_VV,
+    VRGATHER_VX, VRGATHER_VI, VCOMPRESS_VM, VDOTU_VV, VDOT_VV, VFDOT_VV,
+    VAMOSWAPW_V, VAMOADDW_V, VAMOXORW_V, VAMOANDW_V, VAMOORW_V, VAMOMINW_V, VAMOMAXW_V, VAMOMINUW_V, VAMOMAXUW_V,
+    VAMOSWAPE_V, VAMOADDE_V, VAMOXORE_V, VAMOANDE_V, VAMOORE_V, VAMOMINE_V, VAMOMAXE_V, VAMOMINUE_V, VAMOMAXUE_V
+  };
+
+  riscv_instr_name_t vec_int_arith_instr[$] = {
+    VADD_VV, VADD_VX, VADD_VI, VSUB_VV, VSUB_VX, VRSUB_VX, VRSUB_VI, VWADDU_VV, VWADDU_VX, VWSUBU_VV, VWSUBU_VX,
+    VWADD_VV, VWADD_VX, VWSUB_VV, VWSUB_VX, VWADDU_WV, VWADDU_WX, VWSUBU_WV, VWSUBU_WX, VWADD_WV, VWADD_WX, VWSUB_WV,
+    VWSUB_WX, VADC_VVM, VADC_VXM, VADC_VIM, VMADC_VVM, VMADC_VXM, VMADC_VIM, VMADC_VV, VMADC_VX, VMADC_VI, VSBC_VVM,
+    VSBC_VXM, VMSBC_VVM, VMSBC_VXM, VMSBC_VV, VMSBC_VX, VAND_VV, VAND_VX, VAND_VI, VOR_VV, VOR_VX, VOR_VI, VXOR_VV,
+    VXOR_VX, VXOR_VI, VSLL_VV, VSLL_VX, VSLL_VI, VSRL_VV, VSRL_VX, VSRL_VI, VSRA_VV, VSRA_VX, VSRA_VI, VNSRL_WV,
+    VNSRL_WX, VNSRL_WI, VNSRA_WV, VNSRA_WX, VNSRA_WI, VMSEQ_VV, VMSEQ_VX, VMSEQ_VI, VMSNE_VV, VMSNE_VX, VMSNE_VI,
+    VMSLTU_VV, VMSLTU_VX, VMSLT_VV, VMSLT_VX, VMSLEU_VV, VMSLEU_VX, VMSLEU_VI, VMSLE_VV, VMSLE_VX, VMSLE_VI, VMSGTU_VX,
+    VMSGTU_VI, VMSGT_VX, VMSGT_VI, VMINU_VV, VMINU_VX, VMIN_VV, VMIN_VX, VMAXU_VV, VMAXU_VX, VMAX_VV, VMAX_VX, VMUL_VV,
+    VMUL_VX, VMULH_VV, VMULH_VX, VMULHU_VV, VMULHU_VX, VMULHSU_VV, VMULHSU_VX, VDIVU_VV, VDIVU_VX, VDIV_VV, VDIV_VX,
+    VREMU_VV, VREMU_VX, VREM_VV, VREM_VX, VWMUL_VV, VWMUL_VX, VWMULU_VV, VWMULU_VX, VWMULSU_VV, VWMULSU_VX, VMACC_VV,
+    VMACC_VX, VNMSAC_VV, VNMSAC_VX, VMADD_VV, VMADD_VX, VNMSUB_VV, VNMSUB_VX, VWMACCU_VV, VWMACCU_VX, VWMACC_VV,
+    VWMACC_VX, VWMACCSU_VV, VWMACCSU_VX, VWMACCUS_VX, VQMACCU_VV, VQMACCU_VX, VQMACC_VV, VQMACC_VX, VQMACCSU_VV,
+    VQMACCSU_VX, VQMACCUS_VX, VMERGE_VVM, VMERGE_VXM, VMERGE_VIM, VMV_V_V, VMV_V_X, VMV_V_I
+  };
+
+  riscv_instr_name_t vec_fixed_point_instr[$] = {
+    VSADDU_VV, VSADDU_VX, VSADDU_VI, VSADD_VV, VSADD_VX, VSADD_VI, VSSUBU_VV, VSSUBU_VX, VSSUB_VV, VSSUB_VX, VAADDU_VV,
+    VAADDU_VX, VAADD_VV, VAADD_VX, VASUBU_VV, VASUBU_VX, VASUB_VV, VASUB_VX, VSMUL_VV, VSMUL_VX, VSSRL_VV, VSSRL_VX,
+    VSSRL_VI, VSSRA_VV, VSSRA_VX, VSSRA_VI, VNCLIPU_WV, VNCLIPU_WX, VNCLIPU_WI, VNCLIP_WV, VNCLIP_WX, VNCLIP_WI
+  };
+
+  riscv_instr_name_t vec_floating_point_instr[$] = {
+    VFADD_VV, VFADD_VF, VFSUB_VV, VFSUB_VF, VFRSUB_VF, VFWADD_VV, VFWADD_VF, VFWSUB_VV, VFWSUB_VF, VFWADD_WV, VFWADD_WF,
+    VFWSUB_WV, VFWSUB_WF, VFMUL_VV, VFMUL_VF, VFDIV_VV, VFDIV_VF, VFRDIV_VF, VFWMUL_VV, VFWMUL_VF, VFMACC_VV, VFMACC_VF,
+    VFNMACC_VV, VFNMACC_VF, VFMSAC_VV, VFMSAC_VF, VFNMSAC_VV, VFNMSAC_VF, VFMADD_VV, VFMADD_VF, VFNMADD_VV, VFNMADD_VF,
+    VFMSUB_VV, VFMSUB_VF, VFNMSUB_VV, VFNMSUB_VF, VFWMACC_VV, VFWMACC_VF, VFWNMACC_VV, VFWNMACC_VF, VFWMSAC_VV,
+    VFWMSAC_VF, VFWNMSAC_VV, VFWNMSAC_VF, VFSQRT_V, VFMIN_VV, VFMIN_VF, VFMAX_VV, VFMAX_VF, VFSGNJ_VV, VFSGNJ_VF,
+    VFSGNJN_VV, VFSGNJN_VF, VFSGNJX_VV, VFSGNJX_VF, VMFEQ_VV, VMFEQ_VF, VMFNE_VV, VMFNE_VF, VMFLT_VV, VMFLT_VF,
+    VMFLE_VV, VMFLE_VF, VMFGT_VF, VMFGE_VF,
+    VFCLASS_V, VFMERGE_VFM, VFMV_V_F, VFCVT_XU_F_V, VFCVT_X_F_V, VFCVT_F_XU_V, VFCVT_F_X_V, VFWCVT_XU_F_V, VFWCVT_X_F_V,
+    VFWCVT_F_XU_V, VFWCVT_F_X_V, VFWCVT_F_F_V, VFNCVT_XU_F_W, VFNCVT_X_F_W, VFNCVT_F_XU_W, VFNCVT_F_X_W, VFNCVT_F_F_W,
+    VFNCVT_ROD_F_F_W,
+
+    VFREDSUM_VS, VFREDOSUM_VS, VFREDMIN_VS, VFREDMAX_VS, VFWREDSUM_VS, VFWREDOSUM_VS,  // Also reduction ops
+    VFMV_F_S, VFMV_S_F, // Also permutation
+    VFDOT_VV // Also dot product
+  };
+
+  riscv_instr_name_t vec_reduction_op_instr[$] = {
+    VREDSUM_VS, VREDMAXU_VS, VREDMAX_VS, VREDMINU_VS, VREDMIN_VS, VREDAND_VS, VREDOR_VS, VREDXOR_VS, VWREDSUMU_VS,
+    VWREDSUM_VS, VFREDOSUM_VS, VFREDSUM_VS, VFREDMAX_VS, VFREDMIN_VS, VFWREDOSUM_VS, VFWREDSUM_VS
+  };
+
+  riscv_instr_name_t vec_mask_instr[$] = {
+    VMAND_MM, VMNAND_MM, VMANDNOT_MM, VMXOR_MM, VMOR_MM, VMNOR_MM, VMORNOT_MM, VMXNOR_MM, VPOPC_M, VFIRST_M,
+    VMSBF_M, VMSIF_M, VMSOF_M, VIOTA_M, VID_V
+  };
+
+  riscv_instr_name_t vec_permutation_instr[$] = {
+    VMV_X_S, VMV_S_X, VFMV_F_S, VFMV_S_F, VSLIDEUP_VX, VSLIDEUP_VI, VSLIDEDOWN_VX, VSLIDEDOWN_VI, VSLIDE1UP_VX,
+    VSLIDE1DOWN_VX, VRGATHER_VV, VRGATHER_VX, VRGATHER_VI, VCOMPRESS_VM
+  };
+
+  riscv_instr_name_t vec_dot_prod_instr[$] = {
+    VDOTU_VV, VDOT_VV , VFDOT_VV
+  };
+
+  riscv_instr_name_t vec_amo_instr[$] = {
+    VAMOSWAPW_V, VAMOADDW_V, VAMOXORW_V, VAMOANDW_V, VAMOORW_V, VAMOMINW_V, VAMOMAXW_V, VAMOMINUW_V, VAMOMAXUW_V,
+    VAMOSWAPE_V, VAMOADDE_V, VAMOXORE_V, VAMOANDE_V, VAMOORE_V, VAMOMINE_V, VAMOMAXE_V, VAMOMINUE_V, VAMOMAXUE_V
+  };
+
+  riscv_instr_name_t vec_widening_instr[$] = {
+    VWMACCU_VV, VWMACCU_VX, VWMACC_VV, VWMACC_VX, VWMACCSU_VV, VWMACCSU_VX, VWMACCUS_VX, VWADDU_VV, VWADDU_VX,
+    VWSUBU_VV, VWSUBU_VX, VWADD_VV, VWADD_VX, VWSUB_VV, VWSUB_VX, VWADDU_WV, VWADDU_WX, VWSUBU_WV, VWSUBU_WX, VWADD_WV,
+    VWADD_WX, VWSUB_WV, VWSUB_WX, VFWADD_VV, VFWADD_VF, VFWSUB_VV, VFWSUB_VF, VFWADD_WV, VFWADD_WF, VFWSUB_WV,
+    VFWSUB_WF, VFWMUL_VV, VFWMUL_VF, VFWMACC_VV, VFWMACC_VF, VFWNMACC_VV, VFWNMACC_VF, VFWMSAC_VV, VFWMSAC_VF,
+    VFWNMSAC_VV, VFWNMSAC_VF, VFWCVT_XU_F_V, VFWCVT_X_F_V, VFWCVT_F_XU_V, VFWCVT_F_X_V, VFWCVT_F_F_V, VFWREDOSUM_VS,
+    VFWREDSUM_VS
+    // VWREDSUMU_VS & VWREDSUM_VS aren't in this list because they don't widen the destination group size
+  };
+
+  riscv_instr_name_t vec_quad_widening_instr[$] = {
+    VQMACCU_VV, VQMACCU_VX, VQMACC_VV, VQMACC_VX, VQMACCSU_VV, VQMACCSU_VX, VQMACCUS_VX
+  };
+
+  riscv_instr_name_t vec_narrowing_instr[$] = {
+    VNSRL_WV, VNSRL_WX, VNSRL_WI, VNSRA_WV, VNSRA_WX, VNSRA_WI, VNMSAC_VV, VNMSAC_VX, VNMSUB_VV, VNMSUB_VX, VNCLIPU_WV,
+    VNCLIPU_WX, VNCLIPU_WI, VNCLIP_WV, VNCLIP_WX, VNCLIP_WI, VFNMACC_VV, VFNMACC_VF, VFNMSAC_VV, VFNMSAC_VF, VFNMADD_VV,
+    VFNMADD_VF, VFNMSUB_VV, VFNMSUB_VF, VFNCVT_XU_F_W, VFNCVT_X_F_W, VFNCVT_F_XU_W, VFNCVT_F_X_W, VFNCVT_F_F_W,
+    VFNCVT_ROD_F_F_W
+  };
+
+  riscv_instr_name_t vec_widening_vs2[$] = {
+    VWADDU_WV, VWADDU_WX, VWSUBU_WV, VWSUBU_WX, VWADD_WV, VWADD_WX, VWSUB_WV, VWSUB_WX, VFWADD_WV, VFWADD_WF, VFWSUB_WV,
+    VFWSUB_WF, VWREDSUMU_VS, VWREDSUM_VS
+  };
+
+  riscv_instr_name_t vec_no_src_dst_overlap_with_lmul[$] = {VMSEQ_VV, VMSEQ_VX, VMSEQ_VI, VMSNE_VV, VMSNE_VX, VMSNE_VI,
+    VMSLTU_VV, VMSLTU_VX, VMSLT_VV, VMSLT_VX, VMSLEU_VV, VMSLEU_VX, VMSLEU_VI, VMSLE_VV, VMSLE_VX, VMSLE_VI, VMSGTU_VX,
+    VMSGTU_VI, VMSGT_VX, VMSGT_VI, VMADC_VVM, VMADC_VXM, VMADC_VIM, VMADC_VV, VMADC_VX, VMADC_VI, VMSBC_VVM, VMSBC_VXM,
+    VMSBC_VV, VMSBC_VX
+  };
+
+  riscv_instr_name_t vec_illegal_src_dest_overlap_instr[$] = {
+    VSLIDE1UP_VX, VSLIDEUP_VX, VSLIDEUP_VI, VRGATHER_VV, VRGATHER_VX, VRGATHER_VI, VCOMPRESS_VM, VIOTA_M,
+    vec_widening_instr, vec_narrowing_instr, vec_quad_widening_instr
+  };
+
+  riscv_instr_name_t vec_illegal_mask_dest_overlap_instr[$] = {
+    VSLIDE1UP_VX, VSLIDEUP_VX, VSLIDEUP_VI, VIOTA_M, VRGATHER_VV, VRGATHER_VX, VRGATHER_VI
+  };
+
+  // These instructions are always masked (vm is only 0 can't be 1)
+  riscv_instr_name_t vec_forced_mask_instr[$] = {
+    VMERGE_VVM, VMERGE_VXM, VMERGE_VIM, VFMERGE_VFM, VADC_VVM, VADC_VXM, VADC_VIM, VSBC_VVM, VSBC_VXM
+  };
+
+  // These instructions are always unmasked (vm is only 1 and can't be 0)
+  riscv_instr_name_t vec_forced_unmask_instr[$] = {
+    VFMV_V_F, VMV_X_S, VMV_S_X, VFMV_F_S, VFMV_S_F
+  };
+
 
   // Maximum virtual address bits used by the program
   parameter MAX_USED_VADDR_BITS = 30;
@@ -331,12 +875,16 @@ package riscv_instr_pkg;
     S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, T3, T4, T5, T6
   } riscv_reg_t;
 
-  typedef enum bit [4:0] {
-    F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15,
-    F16, F17, F18, F19, F20, F21, F22, F23, F24, F25, F26, F27, F28, F29, F30, F31
-  } riscv_fpr_t;
+  typedef enum bit [4:0] {F[32]} riscv_fpr_t;
 
-  typedef enum bit [3:0] {
+  typedef enum bit [4:0] {V[32]} riscv_vec_reg_t;
+  typedef riscv_vec_reg_t riscv_vec_reg_t_q[$];
+  static riscv_vec_reg_t riscv_all_vec_reg_q[$] = {
+    V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15,
+    V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31
+  };
+
+  typedef enum bit [5:0] {
     J_FORMAT = 0,
     U_FORMAT,
     I_FORMAT,
@@ -352,7 +900,39 @@ package riscv_instr_pkg;
     CL_FORMAT,
     CS_FORMAT,
     CSS_FORMAT,
-    CIW_FORMAT
+    CIW_FORMAT,
+    VL_FORMAT,   // Vector Load          (vd, (rs1), vm)
+    VS_FORMAT,   // Vector Store         (vs3, (rs1), vm)
+    VLS_FORMAT,  // Vector Load Strided  (vd, (rs1), rs2, vm)
+    VSS_FORMAT,  // Vector Store Strided (vs3, (rs1), rs2, vm)
+    VLV_FORMAT,  // Vector Load Vec-Idx  (vd, (rs1), vs2, vm)
+    VSV_FORMAT,  // Vector Store Vec-Idx (vs3, (rs1), vs2, vm)
+    VV_FORMAT,   // Vector-Vector        (vd, vs2, vs1, vm)
+    VX_FORMAT,   // Vector-Scalar        (vd, vs2, rs1, vm)
+    VF_FORMAT,   // Vector-Scalar        (vd, vs2, fs1, vm)
+    VI_FORMAT,   // Vector-Immediate     (vd, vs2, imm, vm)
+    VV1_FORMAT,  // Vector-Vector        (vd, vs2, vs1, v0)
+    VX1_FORMAT,  // Vector-Scalar        (vd, vs2, rs1, v0)
+    VF1_FORMAT,  // Vector-Scalar        (vd, vs2, fs1, v0)
+    VI1_FORMAT,  // Vector-Immediate     (vd, vs2, imm, v0)
+    VV2_FORMAT,  // Vector-Vector        (vd, vs1, vs2, vm)
+    VX2_FORMAT,  // Vector-Scalar        (vd, rs1, vs2, vm)
+    VF2_FORMAT,  // Vector-Scalar        (vd, fs1, vs2, vm)
+    VV3_FORMAT,  // Vector-Vector        (vd, vs1)
+    VX3_FORMAT,  // Vector-Scalar        (vd, rs1)
+    VF3_FORMAT,  // Vector-Scalar        (vd, fs1)
+    VI3_FORMAT,  // Vector-Immediate     (vd, imm)
+    VV4_FORMAT,  // Vector-Vector        (vd, vs2, vm)
+    VV5_FORMAT,  // Vector-Vector        (vd, vs2, vs1)
+    VX5_FORMAT,  // Vector-Vector        (vd, vs2, rs1)
+    VI5_FORMAT,  // Vector-Vector        (vd, vs2, imm)
+    VV6_FORMAT,  // Vector-Vector        (rd, vs2, vm)
+    VX6_FORMAT,  // Vector-Scalar        (rd, vs2, rs1)
+    VV7_FORMAT,  // Vector-Vector        (vd, vm)
+    VF4_FORMAT,  // Vector-Vector        (fd, vs2)
+    VV8_FORMAT,  // Vector-Vector        (rd, vs2)
+    VAMO_FORMAT  // Vector AMO's wd = 1  (rd, (rs1), vs2, vd, vm)
+                 // Vector AMO's wd = 0  (x0, (rs1), vs2, vs3, vm)
   } riscv_instr_format_t;
 
   typedef enum bit [3:0] {
@@ -602,7 +1182,14 @@ package riscv_instr_pkg;
     DCSR            = 'h7B0,  // Debug control and status register
     DPC             = 'h7B1,  // Debug PC
     DSCRATCH0       = 'h7B2,  // Debug scratch register
-    DSCRATCH1       = 'h7B3   // Debug scratch register
+    DSCRATCH1       = 'h7B3,  // Debug scratch register
+
+    // Vector Registers
+    VSTART          = 'h008, // Vector start position
+    VXSAT           = 'h009, // Fixed-Point Saturate Flag
+    VXRM            = 'h00A, // Fixed-Point Rounding Mode
+    VL              = 'hC20, // Vector length
+    VTYPE           = 'hC21  // Vector data type register
   } privileged_reg_t;
 
   typedef enum bit [5:0] {
@@ -843,6 +1430,14 @@ package riscv_instr_pkg;
                            S7, S8, S9, S10, S11, T3, T4, T5, T6};
 
   riscv_reg_t compressed_gpr[] = {S0, S1, A0, A1, A2, A3, A4, A5};
+
+
+  // Vector state
+  int SEW = 16;
+  int LMUL = 1;
+  int EDIV = 1;
+
+  riscv_instr_name_t last_instr = INVALID_INSTR;
 
   `include "riscv_instr_base.sv"
   `include "riscv_instr_gen_config.sv"

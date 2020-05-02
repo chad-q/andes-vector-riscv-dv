@@ -60,6 +60,7 @@ class riscv_instr_gen_config extends uvm_object;
   rand bit               mstatus_sum;
   rand bit               mstatus_tvm;
   rand bit [1:0]         mstatus_fs;
+  rand bit [1:0]         mstatus_vs;
   rand mtvec_mode_t      mtvec_mode;
 
   // Floating point rounding mode
@@ -86,6 +87,10 @@ class riscv_instr_gen_config extends uvm_object;
 
   // Virtual address translation is on for this test
   rand bit               virtual_addr_translation_on;
+
+
+  // Starting physical address of the program.
+  bit [XLEN-1:0] start_pa = 'h8000_0000;
 
   //-----------------------------------------------------------------------------
   //  User space memory region and stack setting
@@ -121,6 +126,7 @@ class riscv_instr_gen_config extends uvm_object;
   //-----------------------------------------------------------------------------
   riscv_instr_base       instr_template[riscv_instr_name_t];
   riscv_instr_name_t     basic_instr[$];
+  riscv_instr_name_t     excluded_instr[$];
   riscv_instr_name_t     instr_group[riscv_instr_group_t][$];
   riscv_instr_name_t     instr_category[riscv_instr_category_t][$];
 
@@ -208,6 +214,42 @@ class riscv_instr_gen_config extends uvm_object;
   riscv_reg_t            reserved_regs[];
   // Floating point support
   bit                    enable_floating_point;
+
+  //-----------------------------------------------------------------------------
+  // Vector Extension
+  //-----------------------------------------------------------------------------
+
+  // Allow only vector instructions from the random sequences
+  rand bit only_vec_instr;
+  constraint only_vec_instr_c {soft only_vec_instr == 0;}
+
+  // Allow vector floating-point instructions (Allows SEW to be set <16 or >32).
+  rand bit vec_fp;
+
+  // Allow vector narrowing or widening instructions.
+  rand bit vec_narrowing_widening;
+
+  // Allow vector quad-widening instructions.
+  rand bit vec_quad_widening;
+  constraint vec_quad_widening_c {
+    if (!vec_narrowing_widening) !vec_quad_widening;
+    if (ELEN < 64) !(vec_fp && vec_quad_widening);   // FP requires at least 16 bits and quad-widening requires no more than ELEN/4 bits.
+  }
+
+  rand bit allow_illegal_vec_instr;
+  constraint allow_illegal_vec_instr_c {soft allow_illegal_vec_instr == 0;}
+
+  rand int repeat_instr_prob;
+  constraint repeat_instr_prob_c {repeat_instr_prob inside {[0:80]};}
+
+
+  // Cause frequent hazards for the Vector Registers:
+  //  * Write-After-Read (WAR)
+  //  * Read-After-Write (RAW)
+  //  * Read-After-Read (RAR)
+  //  * Write-After-Write (WAW)
+  // These hazard conditions are induced by keeping a small (~5) list of registers to select from.
+  rand bit vec_reg_hazards;
 
   //-----------------------------------------------------------------------------
   // Command line options for instruction distribution control
@@ -380,6 +422,14 @@ class riscv_instr_gen_config extends uvm_object;
     }
   }
 
+  constraint vector_vs_c {
+    if (RVV inside {supported_isa}) {
+      mstatus_vs == 2'b01;
+    } else {
+      mstatus_vs == 2'b00;
+    }
+  }
+
   `uvm_object_utils_begin(riscv_instr_gen_config)
     `uvm_field_int(main_program_instr_cnt,       UVM_DEFAULT)
     `uvm_field_sarray_int(sub_program_instr_cnt, UVM_DEFAULT)
@@ -465,7 +515,7 @@ class riscv_instr_gen_config extends uvm_object;
     setup_instr_distribution();
   endfunction
 
-  function void setup_instr_distribution();
+  virtual function void setup_instr_distribution();
     string opts;
     int val;
     get_int_arg_value("+dist_control_mode=", dist_control_mode);
@@ -517,7 +567,7 @@ class riscv_instr_gen_config extends uvm_object;
     end
   endfunction
 
-  function void get_non_reserved_gpr();
+  virtual function void get_non_reserved_gpr();
   endfunction
 
   function void post_randomize();
@@ -529,7 +579,7 @@ class riscv_instr_gen_config extends uvm_object;
     check_setting();
   endfunction
 
-  function void check_setting();
+  virtual function void check_setting();
     bit support_64b;
     bit support_128b;
     foreach (riscv_instr_pkg::supported_isa[i]) begin
@@ -554,7 +604,7 @@ class riscv_instr_gen_config extends uvm_object;
   endfunction
 
   // Get an integer argument from comand line
-  function void get_int_arg_value(string cmdline_str, ref int val);
+  virtual function void get_int_arg_value(string cmdline_str, ref int val);
     string s;
     if(inst.get_arg_value(cmdline_str, s)) begin
       val = s.atoi();
@@ -562,7 +612,7 @@ class riscv_instr_gen_config extends uvm_object;
   endfunction
 
   // Get a bool argument from comand line
-  function void get_bool_arg_value(string cmdline_str, ref bit val);
+  virtual function void get_bool_arg_value(string cmdline_str, ref bit val);
     string s;
     if(inst.get_arg_value(cmdline_str, s)) begin
       val = s.atobin();
@@ -570,7 +620,7 @@ class riscv_instr_gen_config extends uvm_object;
   endfunction
 
   // Get a hex argument from command line
-  function void get_hex_arg_value(string cmdline_str, ref int val);
+  virtual function void get_hex_arg_value(string cmdline_str, ref int val);
     string s;
     if(inst.get_arg_value(cmdline_str, s)) begin
       val = s.atohex();
@@ -580,10 +630,9 @@ class riscv_instr_gen_config extends uvm_object;
   // Build instruction template
   virtual function void build_instruction_template(bit skip_instr_exclusion = 0);
     riscv_instr_name_t instr_name;
-    riscv_instr_name_t excluded_instr[$];
     excluded_instr = {INVALID_INSTR};
     if (!skip_instr_exclusion) begin
-      get_excluded_instr(excluded_instr);
+      get_excluded_instr();
     end
     instr_name = instr_name.first;
     do begin
@@ -607,6 +656,17 @@ class riscv_instr_gen_config extends uvm_object;
   endfunction
 
   virtual function void build_instruction_list();
+    build_basic_instr();
+    filter_basic_instr();
+    assert (basic_instr.size() > 0) else `uvm_fatal(`gfn, "basic_instr was empty!")
+  endfunction
+
+  virtual function void build_basic_instr();
+    if (only_vec_instr) begin
+      basic_instr = {all_vec_instr};
+      return;
+    end
+
     basic_instr = {instr_category[SHIFT], instr_category[ARITHMETIC],
                    instr_category[LOGICAL], instr_category[COMPARE]};
     basic_instr = {basic_instr, EBREAK};
@@ -632,18 +692,65 @@ class riscv_instr_gen_config extends uvm_object;
     end
   endfunction
 
-  virtual function void get_excluded_instr(ref riscv_instr_name_t excluded[$]);
+  virtual function void filter_basic_instr();
+    filter_vec_narrowing_and_widening_instr();
+    filter_vec_floating_point_instr();
+    filter_unsupported_instr();
+    filter_excluded_instr();
+  endfunction
+
+  virtual function void get_excluded_instr();
     // Below instrutions will modify stack pointer, not allowed in normal instruction stream.
     // It can be used in stack operation instruction stream.
-    excluded = {excluded, C_SWSP, C_SDSP, C_ADDI16SP};
-    if (!enable_sfence) begin
-      excluded = {excluded, SFENCE_VMA};
-    end
-    if (no_fence) begin
-      excluded = {excluded, FENCE, FENCE_I, SFENCE_VMA};
-    end
+    excluded_instr = {excluded_instr, C_SWSP, C_SDSP, C_ADDI16SP};
+    if (!enable_sfence) excluded_instr = {excluded_instr, SFENCE_VMA};
+    if (no_fence) excluded_instr = {excluded_instr, FENCE, FENCE_I, SFENCE_VMA};
     // TODO: Support C_ADDI4SPN
-    excluded = {excluded, C_ADDI4SPN};
+    excluded_instr = {excluded_instr, C_ADDI4SPN};
+  endfunction
+
+  protected riscv_vec_reg_t vec_hazard_regs[$] = {};
+
+  virtual function riscv_vec_reg_t_q get_hazard_vec_reg_set();
+    if (!vec_reg_hazards || vec_hazard_regs.size() < VEC_GPR_HAZARD_Q_SZ) return riscv_all_vec_reg_q;
+    return vec_hazard_regs;
+  endfunction
+
+  virtual function void build_hazard_vec_reg_set(riscv_vec_reg_t r);
+    if (!vec_reg_hazards) return;
+    if (r inside {vec_hazard_regs}) return;
+    if (vec_hazard_regs.size() < VEC_GPR_HAZARD_Q_SZ) vec_hazard_regs.push_back(r);
+    else vec_hazard_regs = {r, vec_hazard_regs[0:VEC_GPR_HAZARD_Q_SZ-2]};
+  endfunction
+
+  virtual function void filter_vec_narrowing_and_widening_instr();
+    if (vec_narrowing_widening) begin
+      if (!vec_quad_widening) begin
+        remove_from_basic_instr(vec_quad_widening_instr);
+      end
+    end else begin
+      remove_from_basic_instr(vec_widening_instr);
+      remove_from_basic_instr(vec_quad_widening_instr);
+      remove_from_basic_instr(vec_narrowing_instr);
+    end
+  endfunction
+
+  virtual function void filter_vec_floating_point_instr();
+    if (!vec_fp) remove_from_basic_instr(vec_floating_point_instr);
+  endfunction
+
+
+  virtual function void filter_unsupported_instr();
+    remove_from_basic_instr(unsupported_instr);
+  endfunction
+  virtual function void filter_excluded_instr();
+    remove_from_basic_instr(excluded_instr);
+  endfunction
+
+  virtual function void remove_from_basic_instr(riscv_instr_name_t q[$]);
+    riscv_instr_name_t tmp[$] = basic_instr;
+    basic_instr = {};
+    foreach (tmp[i]) if (!(tmp[i] inside {q})) basic_instr.push_back(tmp[i]);
   endfunction
 
 endclass
