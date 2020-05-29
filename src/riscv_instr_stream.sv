@@ -288,6 +288,8 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
   virtual function bit repeat_instr();
     int prob;
     if (last_instr == INVALID_INSTR) return 0;
+    if (!(last_instr inside {allowed_instr})) return 0;
+    if (last_instr inside {EBREAK, C_EBREAK}) return 0;
     if (cfg.repeat_instr_prob == 0) return 0;
     `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(prob, prob inside {[0:100]};)
     return prob < cfg.repeat_instr_prob;
